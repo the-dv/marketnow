@@ -55,3 +55,17 @@ select count(*) as products_count from public.products where is_active = true;
 - Sem bloqueio tecnico local no momento.
 - Para validar fluxo completo em ambiente real, os passos Supabase/Auth/Vercel acima precisam estar aplicados.
 
+## STEP-03 (obrigatorio apos merge local)
+
+Para habilitar produtos custom privados por usuario:
+
+1. Executar no Supabase SQL Editor:
+   - `supabase/schema.sql` (ambiente novo), ou
+   - `supabase/migrations/20260226_user_pricing_model.sql` (ambiente existente)
+2. Validar policies de `products`:
+   - seed global (`owner_user_id is null`) visivel a todos autenticados
+   - produto privado visivel apenas ao dono
+3. Testar no app:
+   - criar produto custom em `/lists/:id`
+   - confirmar que aparece no seletor para o mesmo usuario
+

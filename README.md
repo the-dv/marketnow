@@ -47,6 +47,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 2. Se seu projeto ja tinha o schema antigo, execute tambem `supabase/migrations/20260226_user_pricing_model.sql`.
 3. Execute `supabase/seed.sql` para popular `categories`, `products` e `regional_prices` (fallback).
 
+Para passos externos detalhados (Supabase Auth, SQL e Vercel), consulte:
+- `docs/manual-steps.md`
+
 ## Fluxo de compra implementado
 
 - O item mostra sugestao de preco e origem.
@@ -66,4 +69,3 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ## Nota importante
 
 Nao usamos Google Shopping nem APIs pagas de preco. A seed interna e apenas sugestao inicial/fallback e nunca substitui o historico do proprio usuario como fonte principal.
-

@@ -20,14 +20,14 @@ Melhorar a robustez da experiencia de uso no MVP atual, com foco em estados de c
 
 ## Requisitos (Checklist)
 
-- [ ] Criar componente reutilizavel para botao com estado de envio (`useFormStatus`).
-- [ ] Aplicar estado `pending` nos formularios de dashboard e lista.
-- [ ] Tratar ausencia de preco sugerido sem quebrar a pagina de lista.
-- [ ] Exibir mensagem de aviso para itens sem sugestao disponivel.
-- [ ] Criar pagina/estado de loading para rotas principais.
-- [ ] Criar/atualizar `docs/manual-steps.md` com passos externos obrigatorios.
-- [ ] Executar `npm run lint` e `npm run build`.
-- [ ] Registrar changelog curto da etapa.
+- [x] Criar componente reutilizavel para botao com estado de envio (`useFormStatus`).
+- [x] Aplicar estado `pending` nos formularios de dashboard e lista.
+- [x] Tratar ausencia de preco sugerido sem quebrar a pagina de lista.
+- [x] Exibir mensagem de aviso para itens sem sugestao disponivel.
+- [x] Criar pagina/estado de loading para rotas principais.
+- [x] Criar/atualizar `docs/manual-steps.md` com passos externos obrigatorios.
+- [x] Executar `npm run lint` e `npm run build`.
+- [x] Registrar changelog curto da etapa.
 
 ## Critérios de aceite
 
@@ -104,5 +104,9 @@ Melhorar a robustez da experiencia de uso no MVP atual, com foco em estados de c
 
 ## Changelog da etapa
 
-- Em andamento.
-
+- Adicionado `FormSubmitButton` com `useFormStatus` para evitar duplo submit e exibir pending text.
+- Aplicado pending state em formularios do dashboard e da pagina de lista.
+- Ajustado `pricing-service` para lidar com preco indisponivel sem erro fatal (`origin = unavailable`).
+- Atualizada UI da lista com mensagens de sugestao indisponivel e guidance para registrar preco real.
+- Adicionado `src/app/loading.tsx` para estado global de carregamento.
+- Criado `docs/manual-steps.md` com passos externos Supabase/Auth/Vercel.

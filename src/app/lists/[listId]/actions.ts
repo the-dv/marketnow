@@ -47,6 +47,66 @@ function parseUnit(raw: FormDataEntryValue | null) {
   return raw as "un" | "kg" | "L";
 }
 
+function parseName(raw: FormDataEntryValue | null) {
+  const value = typeof raw === "string" ? raw.trim() : "";
+  if (!value || value.length > 120) {
+    throw new Error("VALIDATION_ERROR");
+  }
+  return value;
+}
+
+function createSlug(input: string, userId: string) {
+  const base = input
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+  const suffix = `${Date.now()}-${userId.slice(0, 6)}`;
+  return `${base || "produto"}-${suffix}`;
+}
+
+export async function createUserProductAction(formData: FormData) {
+  const listId = String(formData.get("listId") ?? "");
+  const name = parseName(formData.get("productName"));
+  const categoryId = String(formData.get("categoryId") ?? "");
+  const unit = parseUnit(formData.get("unit"));
+
+  if (!listId || !categoryId) {
+    throw new Error("VALIDATION_ERROR");
+  }
+
+  const { supabase, userId } = await requireUserId();
+  await assertListOwnership(listId, userId);
+
+  const { data: category, error: categoryError } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("id", categoryId)
+    .maybeSingle();
+
+  if (categoryError || !category) {
+    throw new Error("VALIDATION_ERROR");
+  }
+
+  const slug = createSlug(name, userId);
+  const { error } = await supabase.from("products").insert({
+    slug,
+    name,
+    owner_user_id: userId,
+    category_id: categoryId,
+    unit,
+    is_active: true,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath(`/lists/${listId}`);
+}
+
 export async function createListItemAction(formData: FormData) {
   const listId = String(formData.get("listId") ?? "");
   const productId = String(formData.get("productId") ?? "");
@@ -62,12 +122,17 @@ export async function createListItemAction(formData: FormData) {
 
   const { data: product, error: productError } = await supabase
     .from("products")
-    .select("unit")
+    .select("unit,owner_user_id")
     .eq("id", productId)
     .eq("is_active", true)
     .maybeSingle();
 
-  if (productError || !product || product.unit !== unit) {
+  if (
+    productError ||
+    !product ||
+    product.unit !== unit ||
+    (product.owner_user_id !== null && product.owner_user_id !== userId)
+  ) {
     throw new Error("VALIDATION_ERROR");
   }
 
@@ -101,12 +166,17 @@ export async function updateListItemAction(formData: FormData) {
 
   const { data: product, error: productError } = await supabase
     .from("products")
-    .select("unit")
+    .select("unit,owner_user_id")
     .eq("id", productId)
     .eq("is_active", true)
     .maybeSingle();
 
-  if (productError || !product || product.unit !== unit) {
+  if (
+    productError ||
+    !product ||
+    product.unit !== unit ||
+    (product.owner_user_id !== null && product.owner_user_id !== userId)
+  ) {
     throw new Error("VALIDATION_ERROR");
   }
 

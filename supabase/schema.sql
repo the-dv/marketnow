@@ -30,6 +30,7 @@ create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
   slug text not null unique,
   name text not null,
+  owner_user_id uuid null references auth.users(id) on delete cascade,
   category_id uuid not null references public.categories(id),
   unit text not null,
   is_active boolean not null default true,
@@ -94,6 +95,8 @@ create index if not exists shopping_list_items_product_idx
   on public.shopping_list_items(product_id);
 create index if not exists products_category_idx
   on public.products(category_id);
+create index if not exists products_owner_user_idx
+  on public.products(owner_user_id);
 create index if not exists products_active_idx
   on public.products(is_active);
 create index if not exists user_product_prices_lookup_idx
@@ -229,17 +232,33 @@ using (user_id = auth.uid());
 
 drop policy if exists categories_select_authenticated on public.categories;
 drop policy if exists products_select_authenticated on public.products;
+drop policy if exists products_select_seed_or_own on public.products;
+drop policy if exists products_insert_own_custom on public.products;
+drop policy if exists products_update_own_custom on public.products;
+drop policy if exists products_delete_own_custom on public.products;
 drop policy if exists regional_prices_select_authenticated on public.regional_prices;
 
 create policy categories_select_authenticated
 on public.categories for select to authenticated
 using (true);
 
-create policy products_select_authenticated
+create policy products_select_seed_or_own
 on public.products for select to authenticated
-using (true);
+using (owner_user_id is null or owner_user_id = auth.uid());
+
+create policy products_insert_own_custom
+on public.products for insert to authenticated
+with check (owner_user_id = auth.uid());
+
+create policy products_update_own_custom
+on public.products for update to authenticated
+using (owner_user_id = auth.uid())
+with check (owner_user_id = auth.uid());
+
+create policy products_delete_own_custom
+on public.products for delete to authenticated
+using (owner_user_id = auth.uid());
 
 create policy regional_prices_select_authenticated
 on public.regional_prices for select to authenticated
 using (true);
-

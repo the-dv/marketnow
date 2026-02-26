@@ -6,6 +6,7 @@ import { mapUfToMacroRegion } from "@/services/location-service";
 import { estimateListTotal } from "@/services/pricing-service";
 import {
   createListItemAction,
+  createUserProductAction,
   deleteListItemAction,
   markListItemPurchasedAction,
   updateListItemAction,
@@ -20,6 +21,7 @@ type ListRow = {
 type ProductRow = {
   id: string;
   name: string;
+  owner_user_id: string | null;
   unit: "un" | "kg" | "L";
   category:
     | Array<{
@@ -29,6 +31,11 @@ type ProductRow = {
         name: string;
       }
     | null;
+};
+
+type CategoryRow = {
+  id: string;
+  name: string;
 };
 
 const SUGGESTION_LABEL: Record<string, string> = {
@@ -97,11 +104,17 @@ export default async function ListDetailsPage({
 
   const { data: products } = await supabase
     .from("products")
-    .select("id,name,unit,category:categories(name)")
+    .select("id,name,owner_user_id,unit,category:categories(name)")
     .eq("is_active", true)
     .order("name", { ascending: true });
 
+  const { data: categories } = await supabase
+    .from("categories")
+    .select("id,name")
+    .order("name", { ascending: true });
+
   const typedProducts = (products ?? []) as ProductRow[];
+  const typedCategories = (categories ?? []) as CategoryRow[];
 
   return (
     <main className="container stack-lg">
@@ -131,6 +144,30 @@ export default async function ListDetailsPage({
       </section>
 
       <section className="card stack-sm">
+        <h2 className="subheading">Cadastrar produto</h2>
+        <form action={createUserProductAction} className="row-grid-user-product">
+          <input type="hidden" name="listId" value={listId} />
+          <input className="input" name="productName" placeholder="Nome do produto" required />
+          <select className="input" name="categoryId" required defaultValue="">
+            <option value="" disabled>
+              Selecione uma categoria
+            </option>
+            {typedCategories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+          <select className="input" name="unit" required defaultValue="un">
+            <option value="un">un</option>
+            <option value="kg">kg</option>
+            <option value="L">L</option>
+          </select>
+          <FormSubmitButton idleText="Salvar produto" pendingText="Salvando..." />
+        </form>
+      </section>
+
+      <section className="card stack-sm">
         <h2 className="subheading">Adicionar item</h2>
         {typedProducts.length === 0 ? (
           <p className="text-error">
@@ -142,7 +179,9 @@ export default async function ListDetailsPage({
             <select className="input" name="productId" required>
               {typedProducts.map((product) => (
                 <option key={product.id} value={product.id}>
-                  {product.name} [{getCategoryName(product)}] ({product.unit})
+                  {product.name}
+                  {product.owner_user_id ? " (meu produto)" : ""} [{getCategoryName(product)}] (
+                  {product.unit})
                 </option>
               ))}
             </select>

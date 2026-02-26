@@ -40,11 +40,16 @@ Regras:
 
 - Lista de compras
   - Cards ou blocos com nome da lista, quantidade de itens e ultima atualizacao.
+  - Card principal deve ser clicavel para abrir a lista.
 
 - Formulario de item
   - Seletor de produto.
   - Campo de quantidade.
   - Seletor de unidade (`un`, `kg`, `L`).
+  - Fluxo adicional para cadastrar produto custom:
+    - nome
+    - categoria
+    - unidade
 
 - Card de total estimado
   - Exibir total em BRL.

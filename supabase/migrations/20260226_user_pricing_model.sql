@@ -34,6 +34,19 @@ begin
   end if;
 end $$;
 
+do $$
+begin
+  if not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'products'
+      and column_name = 'owner_user_id'
+  ) then
+    alter table public.products add column owner_user_id uuid null references auth.users(id) on delete cascade;
+  end if;
+end $$;
+
 update public.categories set slug = lower(slug) where slug is not null;
 
 insert into public.categories (slug, name)
@@ -71,6 +84,8 @@ end $$;
 
 create index if not exists products_category_idx
   on public.products(category_id);
+create index if not exists products_owner_user_idx
+  on public.products(owner_user_id);
 
 do $$
 begin
@@ -141,8 +156,14 @@ create index if not exists user_product_prices_lookup_idx
 
 alter table public.categories enable row level security;
 alter table public.user_product_prices enable row level security;
+alter table public.products enable row level security;
 
 drop policy if exists categories_select_authenticated on public.categories;
+drop policy if exists products_select_authenticated on public.products;
+drop policy if exists products_select_seed_or_own on public.products;
+drop policy if exists products_insert_own_custom on public.products;
+drop policy if exists products_update_own_custom on public.products;
+drop policy if exists products_delete_own_custom on public.products;
 drop policy if exists user_product_prices_select_own on public.user_product_prices;
 drop policy if exists user_product_prices_insert_own on public.user_product_prices;
 drop policy if exists user_product_prices_update_own on public.user_product_prices;
@@ -151,6 +172,23 @@ drop policy if exists user_product_prices_delete_own on public.user_product_pric
 create policy categories_select_authenticated
 on public.categories for select to authenticated
 using (true);
+
+create policy products_select_seed_or_own
+on public.products for select to authenticated
+using (owner_user_id is null or owner_user_id = auth.uid());
+
+create policy products_insert_own_custom
+on public.products for insert to authenticated
+with check (owner_user_id = auth.uid());
+
+create policy products_update_own_custom
+on public.products for update to authenticated
+using (owner_user_id = auth.uid())
+with check (owner_user_id = auth.uid());
+
+create policy products_delete_own_custom
+on public.products for delete to authenticated
+using (owner_user_id = auth.uid());
 
 create policy user_product_prices_select_own
 on public.user_product_prices for select to authenticated

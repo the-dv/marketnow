@@ -84,17 +84,14 @@ export default async function DashboardPage() {
 
           return (
             <article className="list-card" key={list.id}>
-              <div className="stack-sm">
+              <Link className="list-card-main stack-sm" href={`/lists/${list.id}`}>
                 <h3>{list.name}</h3>
                 <p className="text-muted">
                   Status: <strong>{list.status === "active" ? "Ativa" : "Arquivada"}</strong>
                 </p>
-              </div>
+              </Link>
 
               <div className="row-actions">
-                <Link className="button" href={`/lists/${list.id}`}>
-                  Abrir
-                </Link>
                 <form action={toggleShoppingListStatusAction}>
                   <input type="hidden" name="listId" value={list.id} />
                   <input type="hidden" name="status" value={nextStatus} />

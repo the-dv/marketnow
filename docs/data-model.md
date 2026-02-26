@@ -55,6 +55,7 @@ Categorias seed do MVP:
 - `id uuid` PK
 - `slug text` unique
 - `name text`
+- `owner_user_id uuid null` FK `auth.users` (null = seed global; preenchido = produto privado do usuario)
 - `category_id uuid` FK `categories`
 - `unit text` (`un|kg|L`)
 - `is_active boolean`
@@ -124,4 +125,7 @@ Importante:
   usuario so acessa os proprios dados.
 - `categories`, `products`, `regional_prices`:
   leitura autenticada.
+- `products`:
+  - seed global (`owner_user_id is null`) visivel para todos autenticados.
+  - produto privado (`owner_user_id = auth.uid()`) visivel apenas ao dono.
 - Escrita em tabelas seed via migracao/seed (nao pelo client).

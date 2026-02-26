@@ -11,6 +11,7 @@ import {
   markListItemPurchasedAction,
   updateListItemAction,
 } from "./actions";
+import { CreateProductForm } from "./create-product-form";
 
 type ListRow = {
   id: string;
@@ -105,6 +106,7 @@ export default async function ListDetailsPage({
   const { data: products } = await supabase
     .from("products")
     .select("id,name,owner_user_id,unit,category:categories(name)")
+    .eq("owner_user_id", user.id)
     .eq("is_active", true)
     .order("name", { ascending: true });
 
@@ -125,11 +127,10 @@ export default async function ListDetailsPage({
             Voltar
           </Link>
         </div>
-        <p className="text-muted">Status: {list.status === "active" ? "Ativa" : "Arquivada"}</p>
-        <p className="text-muted">
-          Regiao de fallback seed: {regionContext.uf ?? "sem UF"} /{" "}
-          {regionContext.macroRegion ?? "sem macro-regiao"}
-        </p>
+        <div className="row-status">
+          <span className="text-muted">Status:</span>
+          <span className="status-badge">{list.status === "active" ? "Ativa" : "Arquivada"}</span>
+        </div>
       </section>
 
       <section className="card stack-sm">
@@ -145,43 +146,22 @@ export default async function ListDetailsPage({
 
       <section className="card stack-sm">
         <h2 className="subheading">Cadastrar produto</h2>
-        <form action={createUserProductAction} className="row-grid-user-product">
-          <input type="hidden" name="listId" value={listId} />
-          <input className="input" name="productName" placeholder="Nome do produto" required />
-          <select className="input" name="categoryId" required defaultValue="">
-            <option value="" disabled>
-              Selecione uma categoria
-            </option>
-            {typedCategories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-          <select className="input" name="unit" required defaultValue="un">
-            <option value="un">un</option>
-            <option value="kg">kg</option>
-            <option value="L">L</option>
-          </select>
-          <FormSubmitButton idleText="Salvar produto" pendingText="Salvando..." />
-        </form>
+        <CreateProductForm
+          action={createUserProductAction}
+          categories={typedCategories}
+          listId={listId}
+        />
       </section>
 
       <section className="card stack-sm">
         <h2 className="subheading">Adicionar item</h2>
-        {typedProducts.length === 0 ? (
-          <p className="text-error">
-            Nenhum produto disponivel. Execute `supabase/seed.sql` para cadastrar categorias/produtos.
-          </p>
-        ) : (
+        {typedProducts.length === 0 ? <p className="text-muted">Cadastre um produto acima para comecar.</p> : (
           <form action={createListItemAction} className="row-grid">
             <input type="hidden" name="listId" value={listId} />
             <select className="input" name="productId" required>
               {typedProducts.map((product) => (
                 <option key={product.id} value={product.id}>
-                  {product.name}
-                  {product.owner_user_id ? " (meu produto)" : ""} [{getCategoryName(product)}] (
-                  {product.unit})
+                  {product.name} [{getCategoryName(product)}] ({product.unit})
                 </option>
               ))}
             </select>

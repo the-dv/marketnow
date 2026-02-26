@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const VALID_UNITS = new Set(["un", "kg", "L"]);
+export type ProductFormState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
 
 async function requireUserId() {
   const supabase = await createSupabaseServerClient();
@@ -67,45 +71,65 @@ function createSlug(input: string, userId: string) {
   return `${base || "produto"}-${suffix}`;
 }
 
-export async function createUserProductAction(formData: FormData) {
+export async function createUserProductAction(
+  _prevState: ProductFormState,
+  formData: FormData,
+): Promise<ProductFormState> {
   const listId = String(formData.get("listId") ?? "");
-  const name = parseName(formData.get("productName"));
-  const categoryId = String(formData.get("categoryId") ?? "");
-  const unit = parseUnit(formData.get("unit"));
+  let name = "";
+  let unit: "un" | "kg" | "L" = "un";
+  const rawCategoryId = String(formData.get("categoryId") ?? "").trim();
 
-  if (!listId || !categoryId) {
-    throw new Error("VALIDATION_ERROR");
+  if (!listId) {
+    return { status: "error", message: "Lista invalida." };
   }
 
-  const { supabase, userId } = await requireUserId();
-  await assertListOwnership(listId, userId);
-
-  const { data: category, error: categoryError } = await supabase
-    .from("categories")
-    .select("id")
-    .eq("id", categoryId)
-    .maybeSingle();
-
-  if (categoryError || !category) {
-    throw new Error("VALIDATION_ERROR");
+  try {
+    name = parseName(formData.get("productName"));
+    unit = parseUnit(formData.get("unit"));
+  } catch {
+    return { status: "error", message: "Nome do produto e obrigatorio." };
   }
 
-  const slug = createSlug(name, userId);
-  const { error } = await supabase.from("products").insert({
-    slug,
-    name,
-    owner_user_id: userId,
-    category_id: categoryId,
-    unit,
-    is_active: true,
-  });
+  try {
+    const { supabase, userId } = await requireUserId();
+    await assertListOwnership(listId, userId);
 
-  if (error) {
-    throw new Error(error.message);
+    let categoryId: string | null = null;
+    if (rawCategoryId) {
+      const { data: category, error: categoryError } = await supabase
+        .from("categories")
+        .select("id")
+        .eq("id", rawCategoryId)
+        .maybeSingle();
+
+      if (categoryError || !category) {
+        return { status: "error", message: "Categoria invalida." };
+      }
+      categoryId = rawCategoryId;
+    }
+
+    const slug = createSlug(name, userId);
+    const { error } = await supabase.from("products").insert({
+      slug,
+      name,
+      owner_user_id: userId,
+      category_id: categoryId,
+      unit,
+      is_active: true,
+    });
+
+    if (error) {
+      return { status: "error", message: "Nao foi possivel salvar o produto." };
+    }
+
+    revalidatePath(`/lists/${listId}`);
+    return { status: "success", message: "Produto salvo com sucesso." };
+  } catch {
+    return { status: "error", message: "Falha de autenticacao ou permissao." };
   }
-
-  revalidatePath(`/lists/${listId}`);
 }
+
 
 export async function createListItemAction(formData: FormData) {
   const listId = String(formData.get("listId") ?? "");

@@ -48,7 +48,7 @@ Regras:
   - Seletor de unidade (`un`, `kg`, `L`).
   - Fluxo adicional para cadastrar produto custom:
     - nome
-    - categoria
+    - categoria (opcional)
     - unidade
 
 - Card de total estimado

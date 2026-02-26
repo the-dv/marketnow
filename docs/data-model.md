@@ -56,7 +56,7 @@ Categorias seed do MVP:
 - `slug text` unique
 - `name text`
 - `owner_user_id uuid null` FK `auth.users` (null = seed global; preenchido = produto privado do usuario)
-- `category_id uuid` FK `categories`
+- `category_id uuid null` FK `categories` (opcional para produto custom)
 - `unit text` (`un|kg|L`)
 - `is_active boolean`
 - `created_at timestamptz`

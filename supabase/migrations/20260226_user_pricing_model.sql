@@ -60,7 +60,7 @@ where c.slug = 'utilidades'
   and public.products.category_id is null;
 
 alter table public.products
-  alter column category_id set not null;
+  alter column category_id drop not null;
 
 do $$
 begin

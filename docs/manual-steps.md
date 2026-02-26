@@ -57,7 +57,7 @@ select count(*) as products_count from public.products where is_active = true;
 
 ## STEP-03 (obrigatorio apos merge local)
 
-Para habilitar produtos custom privados por usuario:
+Para habilitar produtos custom privados por usuario e categoria opcional:
 
 1. Executar no Supabase SQL Editor:
    - `supabase/schema.sql` (ambiente novo), ou

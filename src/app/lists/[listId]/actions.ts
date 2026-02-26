@@ -1,15 +1,21 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const VALID_UNITS = new Set(["un", "kg", "L"]);
+
 export type ProductFormState = {
   status: "idle" | "success" | "error";
   message: string;
 };
 
-async function requireUserId() {
+export type PurchaseActionState = {
+  status: "success" | "error";
+  message: string;
+};
+
+async function requireUserContext() {
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -22,8 +28,11 @@ async function requireUserId() {
   return { supabase, userId: user.id };
 }
 
-async function assertListOwnership(listId: string, userId: string) {
-  const supabase = await createSupabaseServerClient();
+async function assertListOwnership(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  listId: string,
+  userId: string,
+) {
   const { data, error } = await supabase
     .from("shopping_lists")
     .select("id")
@@ -36,18 +45,15 @@ async function assertListOwnership(listId: string, userId: string) {
   }
 }
 
-function parseQuantity(raw: FormDataEntryValue | null) {
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error("VALIDATION_ERROR");
-  }
-  return parsed;
-}
-
 function parseUnit(raw: FormDataEntryValue | null) {
-  if (typeof raw !== "string" || !VALID_UNITS.has(raw)) {
+  if (typeof raw !== "string" || raw.trim() === "") {
+    return "un" as const;
+  }
+
+  if (!VALID_UNITS.has(raw)) {
     throw new Error("VALIDATION_ERROR");
   }
+
   return raw as "un" | "kg" | "L";
 }
 
@@ -71,6 +77,62 @@ function createSlug(input: string, userId: string) {
   return `${base || "produto"}-${suffix}`;
 }
 
+function parsePaidPriceInput(raw: FormDataEntryValue | null) {
+  if (typeof raw !== "string") {
+    throw new Error("VALIDATION_ERROR");
+  }
+
+  let normalized = raw.trim().replace(/\s/g, "").replace("R$", "");
+
+  if (!normalized) {
+    throw new Error("VALIDATION_ERROR");
+  }
+
+  const hasComma = normalized.includes(",");
+  const hasDot = normalized.includes(".");
+
+  if (hasComma && hasDot) {
+    const lastComma = normalized.lastIndexOf(",");
+    const lastDot = normalized.lastIndexOf(".");
+
+    if (lastComma > lastDot) {
+      normalized = normalized.replace(/\./g, "").replace(/,/g, ".");
+    } else {
+      normalized = normalized.replace(/,/g, "");
+    }
+  } else if (hasComma) {
+    normalized = normalized.replace(/,/g, ".");
+  }
+
+  normalized = normalized.replace(/[^0-9.\-]/g, "");
+
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error("VALIDATION_ERROR");
+  }
+
+  return Number(parsed.toFixed(2));
+}
+
+async function getOwnedProduct(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  productId: string,
+  userId: string,
+) {
+  const { data: product, error } = await supabase
+    .from("products")
+    .select("id,unit,owner_user_id")
+    .eq("id", productId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error || !product || product.owner_user_id !== userId) {
+    throw new Error("FORBIDDEN");
+  }
+
+  return product;
+}
+
 export async function createUserProductAction(
   _prevState: ProductFormState,
   formData: FormData,
@@ -92,8 +154,8 @@ export async function createUserProductAction(
   }
 
   try {
-    const { supabase, userId } = await requireUserId();
-    await assertListOwnership(listId, userId);
+    const { supabase, userId } = await requireUserContext();
+    await assertListOwnership(supabase, listId, userId);
 
     let categoryId: string | null = null;
     if (rawCategoryId) {
@@ -130,135 +192,140 @@ export async function createUserProductAction(
   }
 }
 
-export async function updateListItemAction(formData: FormData) {
+export async function recordProductPurchaseAction(
+  formData: FormData,
+): Promise<PurchaseActionState> {
   const listId = String(formData.get("listId") ?? "");
-  const itemId = String(formData.get("itemId") ?? "");
   const productId = String(formData.get("productId") ?? "");
-  const quantity = parseQuantity(formData.get("quantity"));
-  const unit = parseUnit(formData.get("unit"));
-
-  if (!listId || !itemId || !productId) {
-    throw new Error("VALIDATION_ERROR");
-  }
-
-  const { supabase, userId } = await requireUserId();
-  await assertListOwnership(listId, userId);
-
-  const { data: product, error: productError } = await supabase
-    .from("products")
-    .select("unit,owner_user_id")
-    .eq("id", productId)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (
-    productError ||
-    !product ||
-    product.unit !== unit ||
-    (product.owner_user_id !== null && product.owner_user_id !== userId)
-  ) {
-    throw new Error("VALIDATION_ERROR");
-  }
-
-  const { error } = await supabase
-    .from("shopping_list_items")
-    .update({ quantity, unit })
-    .eq("id", itemId)
-    .eq("shopping_list_id", listId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  revalidatePath(`/lists/${listId}`);
-}
-
-function parsePaidPrice(raw: FormDataEntryValue | null) {
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error("VALIDATION_ERROR");
-  }
-  return Number(parsed.toFixed(2));
-}
-
-export async function markListItemPurchasedAction(formData: FormData) {
-  const listId = String(formData.get("listId") ?? "");
-  const itemId = String(formData.get("itemId") ?? "");
-  const paidPrice = parsePaidPrice(formData.get("paidPrice"));
   const saveReference = formData.get("saveReference") === "on";
 
-  if (!listId || !itemId) {
-    throw new Error("VALIDATION_ERROR");
+  if (!listId || !productId) {
+    return { status: "error", message: "Dados da compra invalidos." };
   }
 
-  const { supabase, userId } = await requireUserId();
-  await assertListOwnership(listId, userId);
-
-  const { data: item, error: itemError } = await supabase
-    .from("shopping_list_items")
-    .select("id,product_id")
-    .eq("id", itemId)
-    .eq("shopping_list_id", listId)
-    .maybeSingle();
-
-  if (itemError || !item) {
-    throw new Error("LIST_ITEM_NOT_FOUND");
+  let paidPrice = 0;
+  try {
+    paidPrice = parsePaidPriceInput(formData.get("paidPrice"));
+  } catch {
+    return { status: "error", message: "Informe um preco valido." };
   }
 
-  const purchaseDate = new Date().toISOString();
+  try {
+    const { supabase, userId } = await requireUserContext();
+    await assertListOwnership(supabase, listId, userId);
+    const product = await getOwnedProduct(supabase, productId, userId);
 
-  const { error: updateError } = await supabase
-    .from("shopping_list_items")
-    .update({
-      paid_price: paidPrice,
-      paid_currency: "BRL",
-      purchased_at: purchaseDate,
-    })
-    .eq("id", itemId)
-    .eq("shopping_list_id", listId);
+    const { data: existingItem, error: existingItemError } = await supabase
+      .from("shopping_list_items")
+      .select("id,quantity,unit")
+      .eq("shopping_list_id", listId)
+      .eq("product_id", productId)
+      .maybeSingle();
 
-  if (updateError) {
-    throw new Error(updateError.message);
-  }
-
-  if (saveReference) {
-    const { error: historyError } = await supabase.from("user_product_prices").insert({
-      user_id: userId,
-      product_id: item.product_id,
-      paid_price: paidPrice,
-      currency: "BRL",
-      purchased_at: purchaseDate,
-      source: "manual",
-    });
-
-    if (historyError) {
-      throw new Error(historyError.message);
+    if (existingItemError && existingItemError.code !== "PGRST116") {
+      throw new Error(existingItemError.message);
     }
-  }
 
-  revalidatePath(`/lists/${listId}`);
+    const purchaseDate = new Date().toISOString();
+
+    if (existingItem) {
+      const quantity = Number(existingItem.quantity) > 0 ? Number(existingItem.quantity) : 1;
+      const { error: updateError } = await supabase
+        .from("shopping_list_items")
+        .update({
+          quantity,
+          unit: existingItem.unit,
+          purchased_at: purchaseDate,
+          paid_price: paidPrice,
+          paid_currency: "BRL",
+        })
+        .eq("id", existingItem.id)
+        .eq("shopping_list_id", listId);
+
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+    } else {
+      const { error: insertError } = await supabase.from("shopping_list_items").insert({
+        shopping_list_id: listId,
+        product_id: productId,
+        quantity: 1,
+        unit: product.unit,
+        purchased_at: purchaseDate,
+        paid_price: paidPrice,
+        paid_currency: "BRL",
+      });
+
+      if (insertError) {
+        throw new Error(insertError.message);
+      }
+    }
+
+    if (saveReference) {
+      const { error: historyError } = await supabase.from("user_product_prices").insert({
+        user_id: userId,
+        product_id: productId,
+        paid_price: paidPrice,
+        currency: "BRL",
+        purchased_at: purchaseDate,
+        source: "manual",
+      });
+
+      if (historyError) {
+        throw new Error(historyError.message);
+      }
+    }
+
+    revalidatePath(`/lists/${listId}`);
+    return { status: "success", message: "Compra registrada com sucesso." };
+  } catch {
+    return { status: "error", message: "Nao foi possivel registrar a compra." };
+  }
 }
 
-export async function deleteListItemAction(formData: FormData) {
+export async function clearProductPurchaseAction(formData: FormData): Promise<PurchaseActionState> {
   const listId = String(formData.get("listId") ?? "");
-  const itemId = String(formData.get("itemId") ?? "");
+  const productId = String(formData.get("productId") ?? "");
 
-  if (!listId || !itemId) {
-    throw new Error("VALIDATION_ERROR");
+  if (!listId || !productId) {
+    return { status: "error", message: "Dados invalidos." };
   }
 
-  const { supabase, userId } = await requireUserId();
-  await assertListOwnership(listId, userId);
+  try {
+    const { supabase, userId } = await requireUserContext();
+    await assertListOwnership(supabase, listId, userId);
+    await getOwnedProduct(supabase, productId, userId);
 
-  const { error } = await supabase
-    .from("shopping_list_items")
-    .delete()
-    .eq("id", itemId)
-    .eq("shopping_list_id", listId);
+    const { data: existingItem, error: existingItemError } = await supabase
+      .from("shopping_list_items")
+      .select("id")
+      .eq("shopping_list_id", listId)
+      .eq("product_id", productId)
+      .maybeSingle();
 
-  if (error) {
-    throw new Error(error.message);
+    if (existingItemError && existingItemError.code !== "PGRST116") {
+      throw new Error(existingItemError.message);
+    }
+
+    if (existingItem) {
+      const { error: updateError } = await supabase
+        .from("shopping_list_items")
+        .update({
+          purchased_at: null,
+          paid_price: null,
+          paid_currency: null,
+        })
+        .eq("id", existingItem.id)
+        .eq("shopping_list_id", listId);
+
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+    }
+
+    revalidatePath(`/lists/${listId}`);
+    return { status: "success", message: "Item desmarcado." };
+  } catch {
+    return { status: "error", message: "Nao foi possivel atualizar o item." };
   }
-
-  revalidatePath(`/lists/${listId}`);
 }

@@ -93,6 +93,8 @@ create index if not exists shopping_list_items_list_idx
   on public.shopping_list_items(shopping_list_id);
 create index if not exists shopping_list_items_product_idx
   on public.shopping_list_items(product_id);
+create unique index if not exists shopping_list_items_unique_list_product_idx
+  on public.shopping_list_items(shopping_list_id, product_id);
 create index if not exists products_category_idx
   on public.products(category_id);
 create index if not exists products_owner_user_idx

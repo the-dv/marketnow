@@ -25,10 +25,12 @@ export function CreateProductForm({
   const [state, formAction] = useActionState(action, initialState);
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (state.status === "success") {
       formRef.current?.reset();
+      nameInputRef.current?.focus();
       router.refresh();
     }
   }, [router, state.status]);
@@ -36,7 +38,22 @@ export function CreateProductForm({
   return (
     <form action={formAction} className="row-grid-user-product" ref={formRef}>
       <input type="hidden" name="listId" value={listId} />
-      <input className="input" name="productName" placeholder="Nome do produto" required />
+      <input
+        ref={nameInputRef}
+        autoFocus
+        className="input"
+        name="productName"
+        placeholder="Nome do produto"
+        required
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" || event.shiftKey) {
+            return;
+          }
+
+          event.preventDefault();
+          event.currentTarget.form?.requestSubmit();
+        }}
+      />
       <select className="input" name="categoryId" defaultValue="">
         <option value="">Sem categoria</option>
         {categories.map((category) => (

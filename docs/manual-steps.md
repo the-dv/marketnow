@@ -16,6 +16,7 @@ Este arquivo registra tarefas que dependem de painel externo (Supabase/Vercel) e
 3. Se o banco ja existia com modelo antigo, executar:
    - `supabase/migrations/20260226_user_pricing_model.sql`
    - `supabase/migrations/20260226_categories_alignment.sql`
+   - `supabase/migrations/20260226_dynamic_shopping_flow.sql`
 4. Executar `supabase/seed.sql`.
 
 ### Validacao rapida (SQL)
@@ -70,4 +71,25 @@ Para alinhar cadastro de produto sem categoria + categorias oficiais:
 4. Testar no app:
    - criar produto custom em `/lists/:id`
    - confirmar que aparece na secao "Meus produtos" para o mesmo usuario
+
+## STEP-06 (obrigatorio apos merge local)
+
+Para habilitar o fluxo dinamico de compra em "Meus produtos":
+
+1. Executar no Supabase SQL Editor:
+   - `supabase/migrations/20260226_dynamic_shopping_flow.sql`
+2. Validar que o indice unico existe:
+
+```sql
+select indexname
+from pg_indexes
+where schemaname = 'public'
+  and tablename = 'shopping_list_items'
+  and indexname = 'shopping_list_items_unique_list_product_idx';
+```
+
+3. Testar no app:
+   - em `/lists/:id`, marcar um produto como comprado
+   - informar preco no modal e confirmar
+   - recarregar a pagina e validar checkbox persistido
 

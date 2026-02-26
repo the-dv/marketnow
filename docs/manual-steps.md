@@ -15,6 +15,7 @@ Este arquivo registra tarefas que dependem de painel externo (Supabase/Vercel) e
 2. Executar `supabase/schema.sql`.
 3. Se o banco ja existia com modelo antigo, executar:
    - `supabase/migrations/20260226_user_pricing_model.sql`
+   - `supabase/migrations/20260226_categories_alignment.sql`
 4. Executar `supabase/seed.sql`.
 
 ### Validacao rapida (SQL)
@@ -55,17 +56,18 @@ select count(*) as products_count from public.products where is_active = true;
 - Sem bloqueio tecnico local no momento.
 - Para validar fluxo completo em ambiente real, os passos Supabase/Auth/Vercel acima precisam estar aplicados.
 
-## STEP-03 (obrigatorio apos merge local)
+## STEP-05 (obrigatorio apos merge local)
 
-Para habilitar produtos custom privados por usuario e categoria opcional:
+Para alinhar cadastro de produto sem categoria + categorias oficiais:
 
 1. Executar no Supabase SQL Editor:
    - `supabase/schema.sql` (ambiente novo), ou
-   - `supabase/migrations/20260226_user_pricing_model.sql` (ambiente existente)
-2. Validar policies de `products`:
+   - `supabase/migrations/20260226_user_pricing_model.sql` e `supabase/migrations/20260226_categories_alignment.sql` (ambiente existente)
+2. Executar `supabase/seed.sql`.
+3. Validar policies de `products`:
    - seed global (`owner_user_id is null`) visivel a todos autenticados
    - produto privado visivel apenas ao dono
-3. Testar no app:
+4. Testar no app:
    - criar produto custom em `/lists/:id`
-   - confirmar que aparece no seletor para o mesmo usuario
+   - confirmar que aparece na secao "Meus produtos" para o mesmo usuario
 

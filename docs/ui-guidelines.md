@@ -43,17 +43,18 @@ Regras:
   - Card principal deve ser clicavel para abrir a lista.
 
 - Formulario de item
-  - Seletor de produto.
-  - Campo de quantidade.
-  - Seletor de unidade (`un`, `kg`, `L`).
   - Fluxo adicional para cadastrar produto custom:
     - nome
     - categoria (opcional)
     - unidade
+  - Secao "Meus produtos" exibindo:
+    - nome
+    - categoria (ou "Sem categoria")
+    - unidade
 
 - Card de total estimado
   - Exibir total em BRL.
-  - Exibir indicador da origem do preco quando houver fallback.
+  - Evitar texto tecnico de regra interna na area principal do card.
 
 ## Estados de Interface Obrigatorios
 

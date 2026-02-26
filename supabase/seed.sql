@@ -1,10 +1,11 @@
 with category_seed(slug, name) as (
   values
     ('alimentos', 'Alimentos'),
+    ('bebidas', 'Bebidas'),
     ('higiene', 'Higiene'),
     ('limpeza', 'Limpeza'),
-    ('bebidas', 'Bebidas'),
-    ('utilidades', 'Utilidades')
+    ('utilidades', 'Utilidades'),
+    ('outros', 'Outros')
 )
 insert into public.categories (slug, name)
 select slug, name
@@ -129,4 +130,3 @@ select
   current_date
 from price_products pp
 cross join macro_regions mr;
-

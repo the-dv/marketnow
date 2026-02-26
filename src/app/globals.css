@@ -17,7 +17,7 @@ body {
 body {
   min-height: 100vh;
   color: var(--text);
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  background: linear-gradient(180deg, #f8f9fb 0%, #f4f7ff 100%);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

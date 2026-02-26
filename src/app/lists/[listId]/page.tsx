@@ -20,8 +20,22 @@ type ListRow = {
 
 type CategoryRow = {
   id: string;
+  slug: string;
   name: string;
 };
+
+type ProductCategory = {
+  name: string;
+};
+
+type UserProductRow = {
+  id: string;
+  name: string;
+  unit: "un" | "kg" | "L";
+  category: ProductCategory | ProductCategory[] | null;
+};
+
+const CATEGORY_ORDER = ["alimentos", "bebidas", "higiene", "limpeza", "utilidades", "outros"];
 
 const SUGGESTION_LABEL: Record<string, string> = {
   user_last_price: "baseado no seu ultimo preco",
@@ -37,6 +51,18 @@ function formatCurrency(value: number) {
     style: "currency",
     currency: "BRL",
   }).format(value);
+}
+
+function getCategoryName(category: UserProductRow["category"]) {
+  if (!category) {
+    return "Sem categoria";
+  }
+
+  if (Array.isArray(category)) {
+    return category[0]?.name ?? "Sem categoria";
+  }
+
+  return category.name;
 }
 
 export default async function ListDetailsPage({
@@ -83,10 +109,24 @@ export default async function ListDetailsPage({
 
   const { data: categories } = await supabase
     .from("categories")
-    .select("id,name")
-    .order("name", { ascending: true });
+    .select("id,name,slug")
+    .in("slug", CATEGORY_ORDER);
 
-  const typedCategories = (categories ?? []) as CategoryRow[];
+  const categoryOrderMap = new Map(CATEGORY_ORDER.map((slug, index) => [slug, index]));
+  const typedCategories = ((categories ?? []) as CategoryRow[]).sort((first, second) => {
+    const firstOrder = categoryOrderMap.get(first.slug) ?? Number.MAX_SAFE_INTEGER;
+    const secondOrder = categoryOrderMap.get(second.slug) ?? Number.MAX_SAFE_INTEGER;
+    return firstOrder - secondOrder;
+  });
+
+  const { data: userProducts } = await supabase
+    .from("products")
+    .select("id,name,unit,category:categories(name)")
+    .eq("owner_user_id", user.id)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false });
+
+  const typedUserProducts = (userProducts ?? []) as UserProductRow[];
 
   return (
     <main className="container stack-lg">
@@ -108,10 +148,6 @@ export default async function ListDetailsPage({
           <h2 className="subheading">Total estimado</h2>
           <strong>{formatCurrency(estimate.estimatedTotal)}</strong>
         </div>
-        <p className="text-muted">
-          Prioridade da sugestao: ultimo preco do usuario -&gt; media do usuario -&gt; seed
-          regional/nacional.
-        </p>
       </section>
 
       <section className="card stack-sm">
@@ -121,6 +157,27 @@ export default async function ListDetailsPage({
           categories={typedCategories}
           listId={listId}
         />
+      </section>
+
+      <section className="card stack-sm">
+        <div className="row-between">
+          <h2 className="subheading">Meus produtos</h2>
+          <span className="text-muted">{typedUserProducts.length} cadastrado(s)</span>
+        </div>
+
+        {typedUserProducts.length === 0 ? (
+          <p className="text-muted">Nenhum produto cadastrado ainda.</p>
+        ) : (
+          typedUserProducts.map((product) => (
+            <article className="list-card" key={product.id}>
+              <div className="stack-sm">
+                <strong>{product.name}</strong>
+                <span className="text-muted">Categoria: {getCategoryName(product.category)}</span>
+              </div>
+              <span className="text-muted">Unidade: {product.unit}</span>
+            </article>
+          ))
+        )}
       </section>
 
       <section className="card stack-sm">

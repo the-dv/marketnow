@@ -46,10 +46,11 @@ Uso:
 
 Categorias seed do MVP:
 - Alimentos
+- Bebidas
 - Higiene
 - Limpeza
-- Bebidas
 - Utilidades
+- Outros
 
 ### `products`
 - `id uuid` PK

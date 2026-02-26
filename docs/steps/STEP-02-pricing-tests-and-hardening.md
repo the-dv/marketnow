@@ -19,17 +19,17 @@ Aumentar confiabilidade da regra de precificacao user-first com testes automatiz
 
 ## Requisitos (Checklist)
 
-- [ ] Criar modulo puro de logica de precificacao com funcoes testaveis.
-- [ ] Cobrir em testes a prioridade:
-  - [ ] ultimo preco do usuario
-  - [ ] media do usuario
-  - [ ] seed por UF
-  - [ ] seed por macro-regiao
-  - [ ] seed nacional
-  - [ ] indisponivel
-- [ ] Integrar `vitest` no projeto.
-- [ ] Garantir `npm run lint` e `npm run build` ok.
-- [ ] Registrar changelog curto da etapa.
+- [x] Criar modulo puro de logica de precificacao com funcoes testaveis.
+- [x] Cobrir em testes a prioridade:
+  - [x] ultimo preco do usuario
+  - [x] media do usuario
+  - [x] seed por UF
+  - [x] seed por macro-regiao
+  - [x] seed nacional
+  - [x] indisponivel
+- [x] Integrar `vitest` no projeto.
+- [x] Garantir `npm run lint` e `npm run build` ok.
+- [x] Registrar changelog curto da etapa.
 
 ## Critérios de aceite
 
@@ -94,5 +94,8 @@ Aumentar confiabilidade da regra de precificacao user-first com testes automatiz
 
 ## Changelog da etapa
 
-- Em andamento.
-
+- Adicionado `src/services/pricing-logic.ts` com regra de prioridade testavel.
+- Refatorado `pricing-service` para delegar escolha de sugestao ao modulo puro.
+- Adicionado `src/services/pricing-logic.test.ts` com 6 cenarios de prioridade/fallback.
+- Integrado Vitest (`npm run test`) com `vitest.config.ts`.
+- Validacao executada: `npm run test`, `npm run lint`, `npm run build`.

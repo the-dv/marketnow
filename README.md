@@ -32,6 +32,12 @@ npm run build
 npm run start
 ```
 
+Testes unitarios:
+
+```bash
+npm run test
+```
+
 ## Variaveis de ambiente
 
 Crie `.env.local`:

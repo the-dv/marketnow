@@ -5,7 +5,6 @@ import { FormSubmitButton } from "@/components/form-submit-button";
 import { mapUfToMacroRegion } from "@/services/location-service";
 import { estimateListTotal } from "@/services/pricing-service";
 import {
-  createListItemAction,
   createUserProductAction,
   deleteListItemAction,
   markListItemPurchasedAction,
@@ -17,21 +16,6 @@ type ListRow = {
   id: string;
   name: string;
   status: "active" | "archived";
-};
-
-type ProductRow = {
-  id: string;
-  name: string;
-  owner_user_id: string | null;
-  unit: "un" | "kg" | "L";
-  category:
-    | Array<{
-        name: string;
-      }>
-    | {
-        name: string;
-      }
-    | null;
 };
 
 type CategoryRow = {
@@ -53,12 +37,6 @@ function formatCurrency(value: number) {
     style: "currency",
     currency: "BRL",
   }).format(value);
-}
-
-function getCategoryName(product: ProductRow) {
-  if (!product.category) return "Sem categoria";
-  if (Array.isArray(product.category)) return product.category[0]?.name ?? "Sem categoria";
-  return product.category.name;
 }
 
 export default async function ListDetailsPage({
@@ -103,19 +81,11 @@ export default async function ListDetailsPage({
 
   const estimate = await estimateListTotal(listId, regionContext);
 
-  const { data: products } = await supabase
-    .from("products")
-    .select("id,name,owner_user_id,unit,category:categories(name)")
-    .eq("owner_user_id", user.id)
-    .eq("is_active", true)
-    .order("name", { ascending: true });
-
   const { data: categories } = await supabase
     .from("categories")
     .select("id,name")
     .order("name", { ascending: true });
 
-  const typedProducts = (products ?? []) as ProductRow[];
   const typedCategories = (categories ?? []) as CategoryRow[];
 
   return (
@@ -151,37 +121,6 @@ export default async function ListDetailsPage({
           categories={typedCategories}
           listId={listId}
         />
-      </section>
-
-      <section className="card stack-sm">
-        <h2 className="subheading">Adicionar item</h2>
-        {typedProducts.length === 0 ? <p className="text-muted">Cadastre um produto acima para comecar.</p> : (
-          <form action={createListItemAction} className="row-grid">
-            <input type="hidden" name="listId" value={listId} />
-            <select className="input" name="productId" required>
-              {typedProducts.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.name} [{getCategoryName(product)}] ({product.unit})
-                </option>
-              ))}
-            </select>
-            <input
-              className="input"
-              type="number"
-              name="quantity"
-              min="0.001"
-              step="0.001"
-              placeholder="Quantidade"
-              required
-            />
-            <select className="input" name="unit" required defaultValue="un">
-              <option value="un">un</option>
-              <option value="kg">kg</option>
-              <option value="L">L</option>
-            </select>
-            <FormSubmitButton idleText="Adicionar" pendingText="Adicionando..." />
-          </form>
-        )}
       </section>
 
       <section className="card stack-sm">

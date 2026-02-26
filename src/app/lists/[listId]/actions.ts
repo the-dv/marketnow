@@ -130,50 +130,6 @@ export async function createUserProductAction(
   }
 }
 
-
-export async function createListItemAction(formData: FormData) {
-  const listId = String(formData.get("listId") ?? "");
-  const productId = String(formData.get("productId") ?? "");
-  const quantity = parseQuantity(formData.get("quantity"));
-  const unit = parseUnit(formData.get("unit"));
-
-  if (!listId || !productId) {
-    throw new Error("VALIDATION_ERROR");
-  }
-
-  const { supabase, userId } = await requireUserId();
-  await assertListOwnership(listId, userId);
-
-  const { data: product, error: productError } = await supabase
-    .from("products")
-    .select("unit,owner_user_id")
-    .eq("id", productId)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (
-    productError ||
-    !product ||
-    product.unit !== unit ||
-    (product.owner_user_id !== null && product.owner_user_id !== userId)
-  ) {
-    throw new Error("VALIDATION_ERROR");
-  }
-
-  const { error } = await supabase.from("shopping_list_items").insert({
-    shopping_list_id: listId,
-    product_id: productId,
-    quantity,
-    unit,
-  });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  revalidatePath(`/lists/${listId}`);
-}
-
 export async function updateListItemAction(formData: FormData) {
   const listId = String(formData.get("listId") ?? "");
   const itemId = String(formData.get("itemId") ?? "");

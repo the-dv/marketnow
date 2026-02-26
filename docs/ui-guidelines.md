@@ -59,8 +59,8 @@ Regras:
   - Mensagem clara com acao de tentar novamente.
   - Permitir fallback sem bloquear totalmente o uso.
 
-- Sem preco regional
-  - Aviso discreto quando preco nacional for usado por fallback.
+- Sem historico de preco do usuario
+  - Aviso discreto quando a sugestao vier da seed fallback (UF/macro/nacional).
 
 - Estado vazio
   - Sem listas criadas.

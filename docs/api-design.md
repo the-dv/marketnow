@@ -1,156 +1,82 @@
-﻿# API Design (MVP)
+# API Design (MVP)
 
 ## Objetivo
 
-Definir contratos de servico e operacoes da aplicacao para suportar autenticacao, listas e estimativa de preco regional no MarketNow.
+Definir contratos internos para listas e precificacao user-first.
 
-## Principios
-
-- Contratos tipados com TypeScript.
-- Erros de dominio previsiveis.
-- Autorizacao baseada em sessao + RLS.
-- Sem integracoes externas de preco.
-
-## Tipos de Dominio
+## Tipos principais
 
 ```ts
-export type RegionType = 'state' | 'macro_region' | 'national';
-export type Unit = 'un' | 'kg' | 'L';
-
-export type RegionContext = {
-  country: 'BR';
-  uf?: string;
-  macroRegion?: string;
-};
+type Unit = 'un' | 'kg' | 'L';
+type RegionContext = { country: 'BR'; uf?: string; macroRegion?: string };
+type SuggestedPriceOrigin =
+  | 'user_last_price'
+  | 'user_avg_price'
+  | 'seed_state'
+  | 'seed_macro_region'
+  | 'seed_national';
 ```
 
-## Contratos de Servico Interno (sem implementacao)
-
-### `getCurrentPosition()`
-
-Responsabilidade:
-- Obter latitude/longitude via navegador.
-
-Assinatura sugerida:
-```ts
-type Coordinates = { lat: number; lng: number };
-
-declare function getCurrentPosition(): Promise<Coordinates>;
-```
-
-Erros esperados:
-- `LOCATION_DENIED`
-- `LOCATION_UNAVAILABLE`
-
-### `resolveRegionFromCoords(lat, lng)`
-
-Responsabilidade:
-- Converter coordenadas em `RegionContext` com UF e macro-regiao quando possivel.
-
-Assinatura sugerida:
-```ts
-declare function resolveRegionFromCoords(lat: number, lng: number): Promise<RegionContext>;
-```
-
-Erros esperados:
-- `REGION_RESOLUTION_FAILED`
-
-### `getListWithItems(listId)`
-
-Responsabilidade:
-- Retornar lista e itens do usuario autenticado.
-
-Assinatura sugerida:
-```ts
-type ShoppingListItemDTO = {
-  id: string;
-  productId: string;
-  quantity: number;
-  unit: Unit;
-};
-
-type ShoppingListDTO = {
-  id: string;
-  userId: string;
-  name: string;
-  status: 'active' | 'archived';
-  items: ShoppingListItemDTO[];
-};
-
-declare function getListWithItems(listId: string): Promise<ShoppingListDTO>;
-```
-
-Erros esperados:
-- `AUTH_REQUIRED`
-- `LIST_NOT_FOUND`
-- `FORBIDDEN`
+## Servicos internos
 
 ### `estimateListTotal(listId, regionContext)`
 
-Responsabilidade:
-- Calcular total estimado com fallback regional.
+Prioridade de sugestao:
+1. Ultimo preco do usuario em `user_product_prices`
+2. Media do usuario em `user_product_prices`
+3. Fallback seed `regional_prices` (UF -> macro-regiao -> BR)
 
-Assinatura sugerida:
+Saida por item:
+
 ```ts
 type EstimatedItem = {
+  itemId: string;
   productId: string;
+  productName: string;
   quantity: number;
   unit: Unit;
   unitPrice: number;
-  priceOrigin: RegionType;
+  suggestedPriceOrigin: SuggestedPriceOrigin;
   itemTotal: number;
+  paidPrice?: number;
+  purchasedAt?: string;
 };
-
-type ListEstimate = {
-  listId: string;
-  currency: 'BRL';
-  items: EstimatedItem[];
-  estimatedTotal: number;
-};
-
-declare function estimateListTotal(listId: string, regionContext: RegionContext): Promise<ListEstimate>;
 ```
 
-Erros esperados:
-- `AUTH_REQUIRED`
-- `LIST_NOT_FOUND`
-- `PRICE_NOT_FOUND`
+### `markListItemPurchasedAction(formData)`
 
-## Operacoes de Aplicacao (CRUD)
+Entrada:
+- `listId`
+- `itemId`
+- `paidPrice`
+- `saveReference` (boolean)
 
-### Listas
+Comportamento:
+- sempre grava valor pago da compra em `shopping_list_items`.
+- se `saveReference=true`, grava historico em `user_product_prices`.
+
+## CRUD da lista
+
 - `createList(name)`
-- `getLists()`
 - `updateList(id, { name, status })`
 - `deleteList(id)`
+- `createListItem(listId, productId, quantity, unit)`
+- `updateListItem(itemId, quantity, unit)`
+- `deleteListItem(itemId)`
+- `markListItemPurchased(...)`
 
-Regras:
-- Usuario so manipula listas cujo `user_id = auth.uid()`.
+## Regras de autorizacao
 
-### Itens
-- `addListItem(listId, productId, quantity, unit)`
-- `updateListItem(itemId, { quantity, unit })`
-- `removeListItem(itemId)`
+- Tabelas de usuario usam `auth.uid()` + RLS.
+- Catalogo (`categories`, `products`, `regional_prices`) leitura autenticada.
+- Nao ha endpoint para gravar preco global.
 
-Regras:
-- Item deve pertencer a lista do usuario autenticado.
-- `quantity > 0`.
-- `unit` valida e compativel com produto.
+## Erros de dominio
 
-## Convencao de Erros
-
-Codigos padrao:
 - `AUTH_REQUIRED`
 - `FORBIDDEN`
 - `LIST_NOT_FOUND`
-- `LOCATION_DENIED`
-- `PRICE_NOT_FOUND`
+- `LIST_ITEM_NOT_FOUND`
 - `VALIDATION_ERROR`
+- `PRICE_NOT_FOUND`
 
-Formato sugerido:
-```ts
-type DomainError = {
-  code: string;
-  message: string;
-};
-```

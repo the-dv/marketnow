@@ -1,79 +1,58 @@
-﻿# Pricing Seed Strategy
+# Pricing Strategy (User-First)
 
-## Objetivo
+## Principio central
 
-Definir a estrategia de precificacao estimada do MarketNow usando exclusivamente base seed propria, sem integracoes externas de preco.
+A seed regional/nacional (`regional_prices`) **nao e a verdade principal** do app. Ela existe apenas como sugestao inicial/fallback.
 
-## Fonte de Dados de Preco
+A verdade principal para sugestao de preco e o historico do proprio usuario (`user_product_prices`).
 
-- Origem unica: tabela `regional_prices` no Supabase.
-- Nao usar Google Shopping.
-- Nao usar APIs pagas de preco.
+## Prioridade de sugestao por item
 
-## Hierarquia de Fallback
+1. Ultimo preco pago pelo proprio usuario para o produto.
+2. Media historica do proprio usuario para o produto (quando houver).
+3. Seed fallback:
+   - UF (`state`)
+   - macro-regiao (`macro_region`)
+   - nacional (`national`)
 
-Para cada item da lista:
-1. Buscar preco por UF (`region_type='state'`).
-2. Se ausente, buscar por macro-regiao (`region_type='macro_region'`).
-3. Se ausente, buscar nacional (`region_type='national', region_code='BR'`).
-4. Se ausente em todas as camadas, retornar erro de seed (`PRICE_NOT_FOUND`).
+Se nenhuma camada retornar preco, o sistema retorna `PRICE_NOT_FOUND`.
 
-## Algoritmo de Calculo
+## Fluxo de compra real
 
-Definicao:
-- `item_price = price(UF) || price(macro_regiao) || price(nacional)`
-- `item_total = item_price * quantity`
-- `list_total = soma(item_total)`
+Quando o usuario marca item como comprado:
 
-Saida recomendada por item:
-- `product_id`
-- `quantity`
-- `unit`
-- `unit_price`
-- `price_origin` (`state | macro_region | national`)
-- `item_total`
+1. Pergunta: "Voce pagou quanto?"
+2. Pergunta: "Salvar este valor para usar como referencia futura?"
 
-Saida recomendada da lista:
-- `list_id`
-- `currency` (`BRL`)
-- `items_subtotal[]`
-- `estimated_total`
+Resultados:
 
-## Normalizacao de Unidades no MVP
+- Se `sim`:
+  - registra preco pago do item da compra em `shopping_list_items.paid_price`
+  - grava historico pessoal em `user_product_prices`
 
-Unidades suportadas:
-- `un`
-- `kg`
-- `L`
+- Se `nao`:
+  - registra somente o preco pago daquela compra em `shopping_list_items.paid_price`
+  - nao grava historico em `user_product_prices`
 
-Regra MVP:
-- `shopping_list_items.unit` deve ser compativel com `products.default_unit`.
-- Incompatibilidade de unidade deve ser bloqueada por validacao.
+## Isolamento de dados
 
-Evolucao futura:
-- Conversao de unidades com fator explicito por produto (ex.: g -> kg, ml -> L).
+- Preco salvo por usuario **nao e compartilhado** com outros usuarios.
+- Nao existe media global de usuarios no MVP.
 
-## Politica de Seed e Versionamento
+## Calculo do total estimado
 
-Campos de rastreabilidade:
-- `source` (ex.: `marketnow_seed_v1`)
-- `effective_date`
+Para cada item:
 
-Diretrizes:
-- Atualizar seed por versao identificavel.
-- Manter historico por `effective_date` para auditoria.
-- Garantir que todo produto ativo tenha pelo menos preco nacional valido.
+- `suggested_price = user_last || user_avg || seed_fallback`
+- `item_total = suggested_price * quantity`
 
-## Qualidade de Dados
+Para a lista:
 
-Validacoes minimas:
-- `avg_price > 0`
-- `currency = BRL`
-- Consistencia de `region_type` e `region_code`
-- Cobertura minima de produtos e preco nacional
+- `estimated_total = sum(item_total)`
 
-## Nao Escopo no MVP
+## Papel da seed
 
-- Predicao dinamica de preco por serie temporal.
-- Integracao com cupons/ofertas de varejo.
-- Atualizacao automatica por crawler externo.
+- `regional_prices` continua obrigatoria para fallback inicial.
+- `regional_prices` e catalogo read-only para cliente autenticado.
+- Seed nunca sobrescreve historico individual do usuario quando existe dado pessoal.
+

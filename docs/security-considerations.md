@@ -1,193 +1,64 @@
-﻿# Security Considerations - MarketNow
+# Security Considerations - MarketNow
 
 ## Objetivo
 
-Definir controles minimos de seguranca para o MVP com Supabase, com foco em isolamento de dados por usuario e protecao da base seed de precos.
+Garantir isolamento de dados por usuario e impedir compartilhamento indevido de historico de preco.
 
 ## Principios
 
-- Menor privilegio por padrao.
 - RLS obrigatorio em tabelas acessadas pelo client.
-- Chaves sensiveis restritas ao server.
-- Validacao de entrada em todos os pontos de escrita.
+- Menor privilegio.
+- Seed de catalogo read-only para cliente.
+- Historico de preco sempre no escopo do usuario.
 
-## RLS Obrigatorio
+## Tabelas por tipo de acesso
 
-Tabelas de usuario (acesso por ownership):
+### Escopo do usuario (ownership por `auth.uid()`)
+- `profiles`
 - `shopping_lists`
 - `shopping_list_items`
-- `profiles`
+- `user_product_prices`
 
-Tabelas de catalogo seed:
+### Catalogo read-only (autenticado)
+- `categories`
 - `products`
 - `regional_prices`
 
-Decisao MVP:
-- `products` e `regional_prices` com leitura apenas autenticada.
-- Sem escrita por client nessas tabelas.
+## Regras criticas
 
-## Exemplo de Policies SQL (referencia)
+1. `user_product_prices`:
+- usuario so le/escreve/apaga os proprios registros.
+- nunca compartilhar com outros usuarios.
 
-> Observacao: exemplos para documentacao; ajustes podem ser feitos na implementacao conforme migracoes reais.
+2. `shopping_list_items.paid_price`:
+- registra preco pago da compra daquela lista/item.
+- pode existir sem gravar em `user_product_prices`.
 
-### Habilitar RLS
+3. `regional_prices`:
+- somente fallback seed.
+- sem escrita pelo client autenticado.
 
-```sql
-alter table profiles enable row level security;
-alter table shopping_lists enable row level security;
-alter table shopping_list_items enable row level security;
-alter table products enable row level security;
-alter table regional_prices enable row level security;
-```
+## Policies (resumo)
 
-### `profiles`
+- `shopping_lists_*_own`
+- `shopping_list_items_*_own`
+- `user_product_prices_*_own`
+- `categories_select_authenticated`
+- `products_select_authenticated`
+- `regional_prices_select_authenticated`
 
-```sql
-create policy "profiles_select_own"
-on profiles for select
-to authenticated
-using (id = auth.uid());
+As policies completas estao em `supabase/schema.sql`.
 
-create policy "profiles_update_own"
-on profiles for update
-to authenticated
-using (id = auth.uid())
-with check (id = auth.uid());
+## Chaves e segredos
 
-create policy "profiles_insert_own"
-on profiles for insert
-to authenticated
-with check (id = auth.uid());
-```
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` permitido no client.
+- `service_role` somente backend/migracao.
+- nunca expor segredo em bundle frontend.
 
-### `shopping_lists`
+## Validacoes de entrada
 
-```sql
-create policy "shopping_lists_select_own"
-on shopping_lists for select
-to authenticated
-using (user_id = auth.uid());
+- `quantity > 0`
+- `unit in ('un', 'kg', 'L')`
+- `paid_price > 0` para compras concluídas
+- `currency = BRL` para historico no MVP
 
-create policy "shopping_lists_insert_own"
-on shopping_lists for insert
-to authenticated
-with check (user_id = auth.uid());
-
-create policy "shopping_lists_update_own"
-on shopping_lists for update
-to authenticated
-using (user_id = auth.uid())
-with check (user_id = auth.uid());
-
-create policy "shopping_lists_delete_own"
-on shopping_lists for delete
-to authenticated
-using (user_id = auth.uid());
-```
-
-### `shopping_list_items`
-
-```sql
-create policy "shopping_list_items_select_own"
-on shopping_list_items for select
-to authenticated
-using (
-  exists (
-    select 1
-    from shopping_lists l
-    where l.id = shopping_list_items.shopping_list_id
-      and l.user_id = auth.uid()
-  )
-);
-
-create policy "shopping_list_items_insert_own"
-on shopping_list_items for insert
-to authenticated
-with check (
-  exists (
-    select 1
-    from shopping_lists l
-    where l.id = shopping_list_items.shopping_list_id
-      and l.user_id = auth.uid()
-  )
-);
-
-create policy "shopping_list_items_update_own"
-on shopping_list_items for update
-to authenticated
-using (
-  exists (
-    select 1
-    from shopping_lists l
-    where l.id = shopping_list_items.shopping_list_id
-      and l.user_id = auth.uid()
-  )
-)
-with check (
-  exists (
-    select 1
-    from shopping_lists l
-    where l.id = shopping_list_items.shopping_list_id
-      and l.user_id = auth.uid()
-  )
-);
-
-create policy "shopping_list_items_delete_own"
-on shopping_list_items for delete
-to authenticated
-using (
-  exists (
-    select 1
-    from shopping_lists l
-    where l.id = shopping_list_items.shopping_list_id
-      and l.user_id = auth.uid()
-  )
-);
-```
-
-### `products` e `regional_prices` (catalogo read-only para autenticado)
-
-```sql
-create policy "products_select_authenticated"
-on products for select
-to authenticated
-using (true);
-
-create policy "regional_prices_select_authenticated"
-on regional_prices for select
-to authenticated
-using (true);
-```
-
-Sem policies de insert/update/delete para `authenticated` nessas tabelas.
-
-## Chaves e Segredos
-
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: permitido no client.
-- `SUPABASE_SERVICE_ROLE_KEY`: apenas server-side.
-- Proibir logging de segredos em runtime.
-- Revisar escopo de variaveis na Vercel.
-
-## Validacao de Entrada
-
-- `quantity > 0`.
-- `unit` em (`un`, `kg`, `L`).
-- `name` de lista com limite de tamanho.
-- Sanitizacao de entrada textual para prevenir abuso.
-
-## Auditoria e Monitoramento
-
-- Registrar eventos relevantes de auth (sem dados sensiveis).
-- Monitorar erros de acesso negado por RLS.
-- Revisar periodicamente cobertura da seed e lacunas de preco.
-
-## Riscos Conhecidos e Mitigacoes
-
-- Falha de cobertura regional de preco:
-  - Mitigacao: preco nacional obrigatorio por produto ativo.
-
-- Exposicao indevida de dados entre usuarios:
-  - Mitigacao: RLS estrito por ownership e testes de autorizacao.
-
-- Uso incorreto de chave privilegiada:
-  - Mitigacao: restringir `service_role` a server-only e casos pontuais.

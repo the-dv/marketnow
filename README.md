@@ -1,75 +1,69 @@
-﻿# MarketNow
+# MarketNow
 
-MarketNow e uma aplicacao web de lista de compras inteligente focada em estimativa de custo por regiao no Brasil. O usuario cria listas, adiciona itens e recebe o total estimado com base em precos medios regionais mantidos em base seed propria.
+MarketNow e uma aplicacao web de lista de compras inteligente com autenticacao via Magic Link (Supabase), CRUD de listas/itens e estimativa de total por item.
 
-## Escopo da Fase Atual
+## Regra de Preco (fonte de verdade)
 
-Esta fase cobre somente documentacao, planejamento e estruturacao tecnica. Nao inclui implementacao de paginas, componentes ou logica de aplicacao.
+- Fonte principal: historico do proprio usuario (`user_product_prices`).
+- Seed regional/nacional (`regional_prices`) e apenas fallback.
+- Prioridade da sugestao:
+1. Ultimo preco pago pelo usuario.
+2. Media historica do usuario para o produto.
+3. Seed por UF -> macro-regiao -> nacional.
 
-## Stack Obrigatoria
+## Stack
 
 - Next.js
 - TypeScript
 - Supabase (Auth + Database)
-- Deploy: Vercel (plano gratuito)
+- Vercel (free plan)
 
-## Como rodar localmente (padrao Next.js)
-
-1. Instalar dependencias:
+## Rodar localmente
 
 ```bash
 npm install
-```
-
-2. Executar ambiente de desenvolvimento:
-
-```bash
 npm run dev
 ```
 
-3. Build de producao:
+Build:
 
 ```bash
 npm run build
 npm run start
 ```
 
-## Configuracao Supabase (variaveis de ambiente)
+## Variaveis de ambiente
 
-Criar `.env.local` com:
+Crie `.env.local`:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ```
 
-Regras de uso:
-- `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`: permitidas no client.
-- `SUPABASE_SERVICE_ROLE_KEY`: uso exclusivo server-side, apenas quando estritamente necessario.
-- Nunca expor `SUPABASE_SERVICE_ROLE_KEY` no frontend.
+## Setup do banco (Supabase)
 
-## Deploy na Vercel (Free Plan)
+1. Execute `supabase/schema.sql`.
+2. Se seu projeto ja tinha o schema antigo, execute tambem `supabase/migrations/20260226_user_pricing_model.sql`.
+3. Execute `supabase/seed.sql` para popular `categories`, `products` e `regional_prices` (fallback).
 
-1. Conectar repositorio na Vercel.
-2. Definir as variaveis de ambiente no projeto Vercel:
+## Fluxo de compra implementado
+
+- O item mostra sugestao de preco e origem.
+- Ao marcar como comprado, o usuario informa quanto pagou.
+- Opcional: salvar esse valor como referencia futura.
+- Se salvar, grava em `user_product_prices` (escopo exclusivo do usuario).
+- O valor pago do item fica em `shopping_list_items.paid_price` para registrar a compra daquela lista.
+
+## Deploy na Vercel (free)
+
+1. Conectar o repositorio na Vercel.
+2. Configurar variaveis:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY` (somente server-side)
-3. Executar deploy com configuracao padrao para Next.js.
-4. Validar autenticacao, RLS e fluxo de fallback de preco apos deploy.
+3. Deploy padrao de Next.js.
 
-## Nota Importante sobre Precos
+## Nota importante
 
-Os precos exibidos no MarketNow sao estimativas calculadas exclusivamente a partir de base seed propria de precos medios regionais. Nao ha integracao com Google Shopping nem uso de APIs pagas de preco no MVP.
+Nao usamos Google Shopping nem APIs pagas de preco. A seed interna e apenas sugestao inicial/fallback e nunca substitui o historico do proprio usuario como fonte principal.
 
-## Documentacao Tecnica
-
-- `docs/architecture.md`
-- `docs/data-model.md`
-- `docs/auth-flow.md`
-- `docs/pricing-seed-strategy.md`
-- `docs/api-design.md`
-- `docs/ui-guidelines.md`
-- `docs/development-roadmap.md`
-- `docs/security-considerations.md`

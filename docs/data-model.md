@@ -1,159 +1,127 @@
-﻿# Data Model - Supabase
+# Data Model - Supabase
 
 ## Objetivo
 
-Definir o modelo relacional minimo do MVP no Supabase para suportar autenticacao, listas de compras e precificacao regional seed.
+Modelar o MarketNow com foco em preco por usuario como fonte principal e seed regional apenas fallback.
 
-## Convencoes Gerais
+## Tabelas principais
 
-- Banco: PostgreSQL (Supabase).
-- IDs: `uuid`.
-- Timestamps: `created_at`, `updated_at` com timezone.
-- Moeda padrao: BRL.
-- Escopo geografico inicial: Brasil.
-
-## Tabelas
-
-### `profiles` (opcional no dominio, incluida no MVP)
-
-Finalidade: armazenar preferencias basicas do usuario.
-
-Colunas sugeridas:
-- `id uuid primary key references auth.users(id) on delete cascade`
-- `full_name text null`
-- `preferred_uf char(2) null`
-- `created_at timestamptz not null default now()`
-- `updated_at timestamptz not null default now()`
-
-Indice sugerido:
-- `profiles_preferred_uf_idx(preferred_uf)`
+### `profiles`
+- `id uuid` PK/FK `auth.users(id)`
+- `full_name text`
+- `preferred_uf char(2)`
+- `created_at timestamptz`
+- `updated_at timestamptz`
 
 ### `shopping_lists`
-
-Finalidade: listas pertencentes ao usuario autenticado.
-
-Colunas sugeridas:
-- `id uuid primary key default gen_random_uuid()`
-- `user_id uuid not null references auth.users(id) on delete cascade`
-- `name text not null`
-- `status text not null default 'active'` (ex.: `active`, `archived`)
-- `created_at timestamptz not null default now()`
-- `updated_at timestamptz not null default now()`
-
-Indices sugeridos:
-- `shopping_lists_user_updated_idx(user_id, updated_at desc)`
+- `id uuid` PK
+- `user_id uuid` FK `auth.users`
+- `name text`
+- `status text` (`active|archived`)
+- `created_at timestamptz`
+- `updated_at timestamptz`
 
 ### `shopping_list_items`
+- `id uuid` PK
+- `shopping_list_id uuid` FK `shopping_lists`
+- `product_id uuid` FK `products`
+- `quantity numeric(10,3)` > 0
+- `unit text` (`un|kg|L`)
+- `purchased_at timestamptz null`
+- `paid_price numeric(10,2) null`
+- `paid_currency char(3) null default 'BRL'`
+- `created_at timestamptz`
+- `updated_at timestamptz`
 
-Finalidade: itens vinculados a uma lista.
+Uso:
+- `paid_price` registra o valor real daquela compra/lista.
+- Esse valor pode ou nao virar referencia futura em `user_product_prices`.
 
-Colunas sugeridas:
-- `id uuid primary key default gen_random_uuid()`
-- `shopping_list_id uuid not null references shopping_lists(id) on delete cascade`
-- `product_id uuid not null references products(id)`
-- `quantity numeric(10,3) not null`
-- `unit text not null` (`un`, `kg`, `L`)
-- `created_at timestamptz not null default now()`
-- `updated_at timestamptz not null default now()`
+### `categories`
+- `id uuid` PK
+- `slug text` unique
+- `name text` unique
+- `created_at timestamptz`
+- `updated_at timestamptz`
 
-Constraints sugeridas:
-- `check (quantity > 0)`
-- `check (unit in ('un', 'kg', 'L'))`
-
-Indices sugeridos:
-- `shopping_list_items_list_idx(shopping_list_id)`
-- `shopping_list_items_product_idx(product_id)`
+Categorias seed do MVP:
+- Alimentos
+- Higiene
+- Limpeza
+- Bebidas
+- Utilidades
 
 ### `products`
+- `id uuid` PK
+- `slug text` unique
+- `name text`
+- `category_id uuid` FK `categories`
+- `unit text` (`un|kg|L`)
+- `is_active boolean`
+- `created_at timestamptz`
+- `updated_at timestamptz`
 
-Finalidade: catalogo base de produtos disponiveis para composicao da lista.
+### `user_product_prices` (fonte principal de referencia)
+- `id uuid` PK
+- `user_id uuid` FK `auth.users`
+- `product_id uuid` FK `products`
+- `paid_price numeric(10,2)` > 0
+- `currency char(3)` = BRL
+- `purchased_at timestamptz`
+- `source text` (ex.: `manual`)
+- `created_at timestamptz`
 
-Colunas sugeridas:
-- `id uuid primary key default gen_random_uuid()`
-- `slug text not null unique`
-- `name text not null`
-- `default_unit text not null` (`un`, `kg`, `L`)
-- `is_active boolean not null default true`
-- `created_at timestamptz not null default now()`
-- `updated_at timestamptz not null default now()`
+Sem compartilhamento entre usuarios.
 
-Constraints sugeridas:
-- `check (default_unit in ('un', 'kg', 'L'))`
+### `user_product_price_stats` (opcional)
 
-Indices sugeridos:
-- `products_slug_uidx(slug)` unique
-- `products_active_idx(is_active)`
+Pode ser tabela materializada ou view para acelerar leitura:
+- `user_id`
+- `product_id`
+- `last_price`
+- `avg_price`
+- `last_purchased_at`
 
-### `regional_prices`
+No MVP atual, o calculo usa `user_product_prices` direto.
 
-Finalidade: precos medios por produto e recorte regional (seed propria).
+### `regional_prices` (fallback seed)
+- `id uuid` PK
+- `product_id uuid` FK `products`
+- `region_type text` (`state|macro_region|national`)
+- `region_code text` (UF, macro-regiao, BR)
+- `avg_price numeric(10,2)` > 0
+- `currency char(3)` = BRL
+- `source text`
+- `effective_date date`
+- `created_at timestamptz`
+- `updated_at timestamptz`
 
-Colunas sugeridas:
-- `id uuid primary key default gen_random_uuid()`
-- `product_id uuid not null references products(id) on delete cascade`
-- `region_type text not null` (`state`, `macro_region`, `national`)
-- `region_code text not null`
-  - UF: `SP`, `RJ`, etc.
-  - Macro-regiao: `SE`, `S`, `NE`, `N`, `CO`
-  - Nacional: `BR`
-- `avg_price numeric(10,2) not null`
-- `currency char(3) not null default 'BRL'`
-- `source text not null` (ex.: `marketnow_seed_v1`)
-- `effective_date date not null`
-- `created_at timestamptz not null default now()`
-- `updated_at timestamptz not null default now()`
-
-Constraints sugeridas:
-- `check (avg_price > 0)`
-- `check (region_type in ('state', 'macro_region', 'national'))`
-- `check (currency = 'BRL')`
-
-Indices sugeridos:
-- `regional_prices_lookup_idx(product_id, region_type, region_code, effective_date desc)`
-- `regional_prices_region_idx(region_type, region_code)`
+Importante:
+- `regional_prices` nao e fonte principal.
+- e somente fallback quando nao existe historico do proprio usuario.
 
 ## Relacionamentos
 
-- `auth.users (1) -> (1) profiles`
-- `auth.users (1) -> (N) shopping_lists`
-- `shopping_lists (1) -> (N) shopping_list_items`
-- `products (1) -> (N) shopping_list_items`
-- `products (1) -> (N) regional_prices`
+- `auth.users` 1:N `shopping_lists`
+- `shopping_lists` 1:N `shopping_list_items`
+- `categories` 1:N `products`
+- `products` 1:N `shopping_list_items`
+- `auth.users` 1:N `user_product_prices`
+- `products` 1:N `user_product_prices`
+- `products` 1:N `regional_prices`
 
-## Estrategia de Seed Inicial
+## Indices principais
 
-Objetivo minimo:
-- Pelo menos 20 produtos ativos no catalogo.
-- Para cada produto:
-  - pelo menos 1 preco nacional (`region_type='national', region_code='BR'`)
-  - precos por UF para cobertura principal
-  - opcional: precos por macro-regiao para melhorar fallback
+- `shopping_lists(user_id, updated_at desc)`
+- `shopping_list_items(shopping_list_id)`
+- `products(category_id)`
+- `user_product_prices(user_id, product_id, purchased_at desc)`
+- `regional_prices(product_id, region_type, region_code, effective_date desc)`
 
-Sugestao de produtos base (exemplo):
-- Arroz 5kg
-- Feijao 1kg
-- Oleo 900ml
-- Acucar 1kg
-- Cafe 500g
-- Leite 1L
-- Ovo (duzia)
-- Pao de forma
-- Macarrao 500g
-- Molho de tomate
-- Farinha de trigo 1kg
-- Sal 1kg
-- Manteiga 200g
-- Queijo 300g
-- Frango 1kg
-- Carne bovina 1kg
-- Banana 1kg
-- Batata 1kg
-- Cebola 1kg
-- Tomate 1kg
+## RLS (resumo)
 
-## Integridade e Regras
-
-- `shopping_list_items.quantity` sempre maior que 0.
-- Unidade do item deve ser valida (`un`, `kg`, `L`).
-- Unidade do item deve ser compativel com `products.default_unit` no MVP.
-- `regional_prices` deve sempre possuir preco nacional para evitar lacuna de estimativa.
+- `shopping_lists`, `shopping_list_items`, `user_product_prices`, `profiles`:
+  usuario so acessa os proprios dados.
+- `categories`, `products`, `regional_prices`:
+  leitura autenticada.
+- Escrita em tabelas seed via migracao/seed (nao pelo client).

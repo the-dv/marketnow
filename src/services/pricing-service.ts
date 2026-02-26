@@ -1,9 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type {
-  ListEstimate,
-  RegionContext,
-  SuggestedPriceOrigin,
-} from "@/types/domain";
+import type { ListEstimate, RegionContext } from "@/types/domain";
+import { resolveSuggestedPrice } from "@/services/pricing-logic";
 
 type ListItemRow = {
   id: string;
@@ -34,12 +31,6 @@ function pickRelatedProduct(
   return product;
 }
 
-type UserPriceRow = {
-  product_id: string;
-  paid_price: number;
-  purchased_at: string;
-};
-
 type RegionalPriceRow = {
   product_id: string;
   region_type: "state" | "macro_region" | "national";
@@ -47,59 +38,6 @@ type RegionalPriceRow = {
   avg_price: number;
   effective_date: string;
 };
-
-function pickLatestPrice(rows: UserPriceRow[]): number | undefined {
-  if (rows.length === 0) return undefined;
-  const sorted = [...rows].sort((a, b) => b.purchased_at.localeCompare(a.purchased_at));
-  return sorted[0]?.paid_price;
-}
-
-function pickAveragePrice(rows: UserPriceRow[]): number | undefined {
-  if (rows.length === 0) return undefined;
-  const total = rows.reduce((acc, row) => acc + row.paid_price, 0);
-  return Number((total / rows.length).toFixed(2));
-}
-
-function pickSeedPrice(
-  rows: RegionalPriceRow[],
-  regionContext: RegionContext,
-): { price?: number; origin?: SuggestedPriceOrigin } {
-  const sorted = [...rows].sort((a, b) => b.effective_date.localeCompare(a.effective_date));
-
-  if (regionContext.uf) {
-    const byState = sorted.find(
-      (row) =>
-        row.region_type === "state" &&
-        row.region_code.toUpperCase() === regionContext.uf?.toUpperCase(),
-    );
-
-    if (byState) {
-      return { price: byState.avg_price, origin: "seed_state" };
-    }
-  }
-
-  if (regionContext.macroRegion) {
-    const byMacro = sorted.find(
-      (row) =>
-        row.region_type === "macro_region" &&
-        row.region_code.toUpperCase() === regionContext.macroRegion?.toUpperCase(),
-    );
-
-    if (byMacro) {
-      return { price: byMacro.avg_price, origin: "seed_macro_region" };
-    }
-  }
-
-  const byNational = sorted.find(
-    (row) => row.region_type === "national" && row.region_code.toUpperCase() === "BR",
-  );
-
-  if (byNational) {
-    return { price: byNational.avg_price, origin: "seed_national" };
-  }
-
-  return {};
-}
 
 export async function estimateListTotal(
   listId: string,
@@ -160,35 +98,33 @@ export async function estimateListTotal(
     throw new Error(regionalPricesError.message);
   }
 
-  const typedUserPrices = (userPrices ?? []) as UserPriceRow[];
+  const typedUserPrices = (userPrices ?? []) as Array<{
+    product_id: string;
+    paid_price: number;
+    purchased_at: string;
+  }>;
   const typedRegionalPrices = (regionalPrices ?? []) as RegionalPriceRow[];
 
   const estimatedItems = typedItems.map((item) => {
     const product = pickRelatedProduct(item.product);
     const userRows = typedUserPrices.filter((row) => row.product_id === item.product_id);
-
-    const lastUserPrice = pickLatestPrice(userRows);
-    const avgUserPrice = pickAveragePrice(userRows);
     const seedRows = typedRegionalPrices.filter((row) => row.product_id === item.product_id);
+    const suggestion = resolveSuggestedPrice(
+      userRows.map((row) => ({
+        paidPrice: row.paid_price,
+        purchasedAt: row.purchased_at,
+      })),
+      seedRows.map((row) => ({
+        regionType: row.region_type,
+        regionCode: row.region_code,
+        avgPrice: row.avg_price,
+        effectiveDate: row.effective_date,
+      })),
+      regionContext,
+    );
 
-    let unitPrice: number | undefined;
-    let suggestedPriceOrigin: SuggestedPriceOrigin | undefined;
-
-    if (lastUserPrice) {
-      unitPrice = lastUserPrice;
-      suggestedPriceOrigin = "user_last_price";
-    } else if (avgUserPrice) {
-      unitPrice = avgUserPrice;
-      suggestedPriceOrigin = "user_avg_price";
-    } else {
-      const seedChoice = pickSeedPrice(seedRows, regionContext);
-      unitPrice = seedChoice.price;
-      suggestedPriceOrigin = seedChoice.origin;
-    }
-
-    const isPriceAvailable = Boolean(unitPrice && suggestedPriceOrigin);
-    const safeUnitPrice = unitPrice ?? 0;
-    const safeOrigin = suggestedPriceOrigin ?? "unavailable";
+    const safeUnitPrice = suggestion.unitPrice;
+    const safeOrigin = suggestion.origin;
     const itemTotal = Number((safeUnitPrice * item.quantity).toFixed(2));
 
     return {
@@ -200,7 +136,7 @@ export async function estimateListTotal(
       unitPrice: safeUnitPrice,
       suggestedPriceOrigin: safeOrigin,
       itemTotal,
-      isPriceAvailable,
+      isPriceAvailable: suggestion.isPriceAvailable,
       paidPrice: item.paid_price ?? undefined,
       purchasedAt: item.purchased_at ?? undefined,
     };

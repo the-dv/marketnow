@@ -10,22 +10,24 @@ type ListItemRow = {
   paid_price: number | null;
   purchased_at: string | null;
   product:
-    | Array<{
+      | Array<{
         id: string;
         name: string;
         unit: "un" | "kg" | "L";
+        is_active: boolean;
       }>
     | {
         id: string;
         name: string;
         unit: "un" | "kg" | "L";
+        is_active: boolean;
       }
     | null;
 };
 
 function pickRelatedProduct(
   product: ListItemRow["product"],
-): { id: string; name: string; unit: "un" | "kg" | "L" } | null {
+): { id: string; name: string; unit: "un" | "kg" | "L"; is_active: boolean } | null {
   if (!product) return null;
   if (Array.isArray(product)) return product[0] ?? null;
   return product;
@@ -54,7 +56,7 @@ export async function estimateListTotal(
 
   const { data: listItems, error: listItemsError } = await supabase
     .from("shopping_list_items")
-    .select("id,product_id,quantity,unit,paid_price,purchased_at,product:products(id,name,unit)")
+    .select("id,product_id,quantity,unit,paid_price,purchased_at,product:products(id,name,unit,is_active)")
     .eq("shopping_list_id", listId);
 
   if (listItemsError) {
@@ -62,7 +64,12 @@ export async function estimateListTotal(
   }
 
   const typedItems = (listItems ?? []) as ListItemRow[];
-  const productIds = [...new Set(typedItems.map((item) => item.product_id))];
+  const activeItems = typedItems.filter((item) => {
+    const product = pickRelatedProduct(item.product);
+    return Boolean(product?.is_active);
+  });
+
+  const productIds = [...new Set(activeItems.map((item) => item.product_id))];
 
   if (productIds.length === 0) {
     return {
@@ -105,7 +112,7 @@ export async function estimateListTotal(
   }>;
   const typedRegionalPrices = (regionalPrices ?? []) as RegionalPriceRow[];
 
-  const estimatedItems = typedItems.map((item) => {
+  const estimatedItems = activeItems.map((item) => {
     const product = pickRelatedProduct(item.product);
     const userRows = typedUserPrices.filter((row) => row.product_id === item.product_id);
     const seedRows = typedRegionalPrices.filter((row) => row.product_id === item.product_id);

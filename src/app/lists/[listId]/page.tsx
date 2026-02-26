@@ -33,6 +33,8 @@ type UserProductRow = {
 type ProductPurchaseRow = {
   id: string;
   product_id: string;
+  quantity: number;
+  unit: "un" | "kg" | "L";
   purchased_at: string | null;
   paid_price: number | null;
   updated_at: string;
@@ -126,7 +128,7 @@ export default async function ListDetailsPage({
   if (typedUserProducts.length > 0) {
     const { data: purchaseRows } = await supabase
       .from("shopping_list_items")
-      .select("id,product_id,purchased_at,paid_price,updated_at")
+      .select("id,product_id,quantity,unit,purchased_at,paid_price,updated_at")
       .eq("shopping_list_id", listId)
       .in(
         "product_id",
@@ -151,7 +153,8 @@ export default async function ListDetailsPage({
       id: product.id,
       name: product.name,
       categoryName: getCategoryName(product.category),
-      unit: product.unit,
+      quantity: purchase?.quantity ? Number(purchase.quantity) : 1,
+      unit: purchase?.unit ?? product.unit,
       purchased: Boolean(purchase?.purchased_at),
       paidPrice: purchase?.paid_price ?? null,
     };

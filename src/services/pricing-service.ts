@@ -186,11 +186,10 @@ export async function estimateListTotal(
       suggestedPriceOrigin = seedChoice.origin;
     }
 
-    if (!unitPrice || !suggestedPriceOrigin) {
-      throw new Error("PRICE_NOT_FOUND");
-    }
-
-    const itemTotal = Number((unitPrice * item.quantity).toFixed(2));
+    const isPriceAvailable = Boolean(unitPrice && suggestedPriceOrigin);
+    const safeUnitPrice = unitPrice ?? 0;
+    const safeOrigin = suggestedPriceOrigin ?? "unavailable";
+    const itemTotal = Number((safeUnitPrice * item.quantity).toFixed(2));
 
     return {
       itemId: item.id,
@@ -198,9 +197,10 @@ export async function estimateListTotal(
       productId: item.product_id,
       quantity: item.quantity,
       unit: item.unit,
-      unitPrice,
-      suggestedPriceOrigin,
+      unitPrice: safeUnitPrice,
+      suggestedPriceOrigin: safeOrigin,
       itemTotal,
+      isPriceAvailable,
       paidPrice: item.paid_price ?? undefined,
       purchasedAt: item.purchased_at ?? undefined,
     };

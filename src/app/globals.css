@@ -84,6 +84,10 @@ body {
   color: var(--error);
 }
 
+.text-warning {
+  color: #9a6700;
+}
+
 .label {
   font-size: 0.9rem;
   font-weight: 600;
@@ -187,6 +191,20 @@ body {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.9rem;
+}
+
+.loading-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.loading-card {
+  width: 100%;
+  max-width: 460px;
+  text-align: center;
 }
 
 @media (max-width: 640px) {

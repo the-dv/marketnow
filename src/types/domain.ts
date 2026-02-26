@@ -5,7 +5,8 @@ export type SuggestedPriceOrigin =
   | "user_avg_price"
   | "seed_state"
   | "seed_macro_region"
-  | "seed_national";
+  | "seed_national"
+  | "unavailable";
 
 export type RegionContext = {
   country: "BR";
@@ -48,6 +49,7 @@ export type EstimatedItem = {
   unitPrice: number;
   suggestedPriceOrigin: SuggestedPriceOrigin;
   itemTotal: number;
+  isPriceAvailable: boolean;
   paidPrice?: number;
   purchasedAt?: string;
 };

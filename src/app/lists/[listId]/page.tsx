@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import { mapUfToMacroRegion } from "@/services/location-service";
 import { estimateListTotal } from "@/services/pricing-service";
 import {
@@ -36,6 +37,7 @@ const SUGGESTION_LABEL: Record<string, string> = {
   seed_state: "fallback seed por UF",
   seed_macro_region: "fallback seed por macro-regiao",
   seed_national: "fallback seed nacional",
+  unavailable: "sem sugestao disponivel",
 };
 
 function formatCurrency(value: number) {
@@ -158,9 +160,7 @@ export default async function ListDetailsPage({
               <option value="kg">kg</option>
               <option value="L">L</option>
             </select>
-            <button className="button" type="submit">
-              Adicionar
-            </button>
+            <FormSubmitButton idleText="Adicionar" pendingText="Adicionando..." />
           </form>
         )}
       </section>
@@ -178,12 +178,26 @@ export default async function ListDetailsPage({
             <div className="row-between">
               <div className="stack-sm">
                 <strong>{item.productName}</strong>
-                <span className="text-muted">
-                  Sugestao: {formatCurrency(item.unitPrice)} ({SUGGESTION_LABEL[item.suggestedPriceOrigin]})
-                </span>
-                <span className="text-muted">
-                  Subtotal estimado: {formatCurrency(item.itemTotal)} ({item.quantity} {item.unit})
-                </span>
+                {item.isPriceAvailable ? (
+                  <>
+                    <span className="text-muted">
+                      Sugestao: {formatCurrency(item.unitPrice)} (
+                      {SUGGESTION_LABEL[item.suggestedPriceOrigin]})
+                    </span>
+                    <span className="text-muted">
+                      Subtotal estimado: {formatCurrency(item.itemTotal)} ({item.quantity} {item.unit})
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-warning">
+                      Sugestao indisponivel para este item ({SUGGESTION_LABEL[item.suggestedPriceOrigin]}).
+                    </span>
+                    <span className="text-muted">
+                      Informe o preco real ao marcar como comprado para criar referencia futura.
+                    </span>
+                  </>
+                )}
                 {item.paidPrice ? (
                   <span className="text-success">Preco real pago: {formatCurrency(item.paidPrice)}</span>
                 ) : null}
@@ -213,9 +227,7 @@ export default async function ListDetailsPage({
                 <option value="L">L</option>
               </select>
               <div className="row-actions">
-                <button className="button" type="submit">
-                  Salvar
-                </button>
+                <FormSubmitButton idleText="Salvar" pendingText="Salvando..." />
               </div>
             </form>
 
@@ -249,18 +261,18 @@ export default async function ListDetailsPage({
                   Salvar este valor para usar como referencia futura
                 </label>
 
-                <button className="button" type="submit">
-                  Confirmar compra
-                </button>
+                <FormSubmitButton idleText="Confirmar compra" pendingText="Confirmando..." />
               </form>
             </details>
 
             <form action={deleteListItemAction} className="row-actions">
               <input type="hidden" name="listId" value={listId} />
               <input type="hidden" name="itemId" value={item.itemId} />
-              <button className="button button-danger" type="submit">
-                Remover
-              </button>
+              <FormSubmitButton
+                className="button button-danger"
+                idleText="Remover"
+                pendingText="Removendo..."
+              />
             </form>
           </article>
         ))}

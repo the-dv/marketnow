@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { FormSubmitButton } from "@/components/form-submit-button";
 import { SignOutButton } from "./sign-out-button";
 import {
   createShoppingListAction,
@@ -58,9 +59,7 @@ export default async function DashboardPage() {
             maxLength={120}
             required
           />
-          <button className="button" type="submit">
-            Criar lista
-          </button>
+          <FormSubmitButton idleText="Criar lista" pendingText="Criando..." />
         </form>
       </section>
 
@@ -99,15 +98,19 @@ export default async function DashboardPage() {
                 <form action={toggleShoppingListStatusAction}>
                   <input type="hidden" name="listId" value={list.id} />
                   <input type="hidden" name="status" value={nextStatus} />
-                  <button className="button button-secondary" type="submit">
-                    {list.status === "active" ? "Arquivar" : "Reativar"}
-                  </button>
+                  <FormSubmitButton
+                    className="button button-secondary"
+                    idleText={list.status === "active" ? "Arquivar" : "Reativar"}
+                    pendingText="Salvando..."
+                  />
                 </form>
                 <form action={deleteShoppingListAction}>
                   <input type="hidden" name="listId" value={list.id} />
-                  <button className="button button-danger" type="submit">
-                    Excluir
-                  </button>
+                  <FormSubmitButton
+                    className="button button-danger"
+                    idleText="Excluir"
+                    pendingText="Excluindo..."
+                  />
                 </form>
               </div>
             </article>

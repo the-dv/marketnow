@@ -66,11 +66,18 @@ Se nao retornar linha, rode tambem `supabase/seed.sql` e repita a validacao.
 ## Supabase - Configuracao Auth Magic Link
 
 1. Dashboard -> Authentication -> URL Configuration.
-2. Garantir URL de callback permitida:
+2. Definir **Site URL**:
+   - local: `http://localhost:3000`
+   - producao: `https://<seu-projeto>.vercel.app`
+3. Definir **Redirect URLs** (lista permitida):
    - `http://localhost:3000/auth/callback`
-   - URL de producao da Vercel (`https://<seu-projeto>.vercel.app/auth/callback`)
-3. Em Authentication -> Providers -> Email:
+   - `https://<seu-projeto>.vercel.app/auth/callback`
+   - opcional (preview): `https://*-<seu-time>.vercel.app/auth/callback`
+4. Em Authentication -> Providers -> Email:
    - Magic Link habilitado.
+5. Validar no app:
+   - `signInWithOtp` deve usar `emailRedirectTo = <origem-atual>/auth/callback`
+   - se `redirectTo` nao estiver na lista permitida, o Supabase retorna erro 400/422
 
 ## Vercel - Variaveis de ambiente
 

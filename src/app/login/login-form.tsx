@@ -17,6 +17,8 @@ export function LoginForm() {
   const [email, setEmail] = useState("");
   const [isSending, setIsSending] = useState(false);
   const callbackErrorToastShownRef = useRef(false);
+  const otpInFlightRef = useRef(false);
+  const otpAttemptCounterRef = useRef(0);
   const searchParams = useSearchParams();
   const { pushToast } = useToast();
   const callbackError = useMemo(
@@ -68,11 +70,25 @@ export function LoginForm() {
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (isSending) {
+    if (isSending || otpInFlightRef.current) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[auth-otp]", { skipped: true, reason: "already-sending" });
+      }
       return;
     }
 
+    otpInFlightRef.current = true;
     setIsSending(true);
+    const attemptId = `${Date.now()}-${++otpAttemptCounterRef.current}`;
+
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[auth-otp]", {
+        attemptId,
+        ts: new Date().toISOString(),
+        phase: "start",
+      });
+    }
+
     try {
       const supabase = createSupabaseBrowserClient();
       const emailRedirectTo = `${window.location.origin}/auth/callback`;
@@ -90,7 +106,7 @@ export function LoginForm() {
         };
 
         if (process.env.NODE_ENV !== "production") {
-          console.warn("[auth-otp]", safeErrorSnapshot);
+          console.warn("[auth-otp]", { attemptId, ...safeErrorSnapshot });
         }
 
         pushToast({
@@ -108,7 +124,16 @@ export function LoginForm() {
         kind: "success",
         message: "Magic Link enviado. Verifique seu email para continuar.",
       });
+
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[auth-otp]", {
+          attemptId,
+          ts: new Date().toISOString(),
+          phase: "success",
+        });
+      }
     } finally {
+      otpInFlightRef.current = false;
       setIsSending(false);
     }
   }

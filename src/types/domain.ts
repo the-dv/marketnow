@@ -36,7 +36,7 @@ export type Product = {
   slug: string;
   name: string;
   unit: Unit;
-  categoryId: string | null;
+  categoryId: string;
   isActive: boolean;
 };
 

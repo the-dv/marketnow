@@ -112,10 +112,30 @@ export async function estimateListTotal(
   }>;
   const typedRegionalPrices = (regionalPrices ?? []) as RegionalPriceRow[];
 
+  const userPricesByProductId = new Map<
+    string,
+    Array<{ paid_price: number; purchased_at: string }>
+  >();
+  for (const row of typedUserPrices) {
+    const existingRows = userPricesByProductId.get(row.product_id) ?? [];
+    existingRows.push({
+      paid_price: row.paid_price,
+      purchased_at: row.purchased_at,
+    });
+    userPricesByProductId.set(row.product_id, existingRows);
+  }
+
+  const seedPricesByProductId = new Map<string, RegionalPriceRow[]>();
+  for (const row of typedRegionalPrices) {
+    const existingRows = seedPricesByProductId.get(row.product_id) ?? [];
+    existingRows.push(row);
+    seedPricesByProductId.set(row.product_id, existingRows);
+  }
+
   const estimatedItems = activeItems.map((item) => {
     const product = pickRelatedProduct(item.product);
-    const userRows = typedUserPrices.filter((row) => row.product_id === item.product_id);
-    const seedRows = typedRegionalPrices.filter((row) => row.product_id === item.product_id);
+    const userRows = userPricesByProductId.get(item.product_id) ?? [];
+    const seedRows = seedPricesByProductId.get(item.product_id) ?? [];
     const suggestion = resolveSuggestedPrice(
       userRows.map((row) => ({
         paidPrice: row.paid_price,

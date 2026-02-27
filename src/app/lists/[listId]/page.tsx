@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { buttonClassName } from "@/components/ui/button";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { buildOrderedCategoryTotals } from "@/services/list-totals";
 import { mapUfToMacroRegion } from "@/services/location-service";
 import { estimateListTotal } from "@/services/pricing-service";
 import { createUserProductAction } from "./actions";
@@ -206,24 +207,14 @@ export default async function ListDetailsPage({
     };
   });
 
-  const categoryTotals = new Map<string, number>();
-  for (const product of myProducts) {
-    if (!product.purchased || product.paidPrice === null) {
-      continue;
-    }
-
-    const normalizedCategory =
-      !product.categoryName || product.categoryName === "Outros" ? "Sem categoria" : product.categoryName;
-    const currentTotal = categoryTotals.get(normalizedCategory) ?? 0;
-    categoryTotals.set(normalizedCategory, Number((currentTotal + product.paidPrice).toFixed(2)));
-  }
-
-  const orderedCategoryTotals = CATEGORY_TOTAL_ORDER.filter((categoryName) =>
-    categoryTotals.has(categoryName),
-  ).map((categoryName) => ({
-    categoryName,
-    total: categoryTotals.get(categoryName) ?? 0,
-  }));
+  const orderedCategoryTotals = buildOrderedCategoryTotals(
+    myProducts.map((product) => ({
+      purchased: product.purchased,
+      paidPrice: product.paidPrice,
+      categoryName: product.categoryName,
+    })),
+    CATEGORY_TOTAL_ORDER,
+  );
 
   return (
     <main className="container container-wide stack-lg">
@@ -272,13 +263,12 @@ export default async function ListDetailsPage({
           <hr className="divider" />
 
           <div className="row-between">
-          <h2 className="subheading">Total estimado</h2>
-          <strong>{formatCurrency(estimate.estimatedTotal)}</strong>
+            <h2 className="subheading">Total estimado</h2>
+            <strong>{formatCurrency(estimate.estimatedTotal)}</strong>
           </div>
         </div>
       </section>
     </main>
   );
 }
-
 

@@ -16,6 +16,15 @@ import { useToast } from "@/components/toast-provider";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import {
+  extractDigits,
+  formatBrlFromDigits,
+  formatBrlFromNumber,
+  formatCurrencyBRL,
+  isBlockedNumericKey,
+  normalizeQuantityInput,
+  parseBrlToNumber,
+} from "@/services/input-format";
+import {
   bulkMarkProductsPurchasedAction,
   clearProductPurchaseAction,
   recordProductPurchaseAction,
@@ -52,71 +61,11 @@ type BulkStep = "decision" | "prices" | "unpurchase" | null;
 
 const UNIT_OPTIONS: Array<"un" | "kg" | "L"> = ["un", "kg", "L"];
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
-}
-
 function buildFormData(listId: string, productId: string) {
   const formData = new FormData();
   formData.append("listId", listId);
   formData.append("productId", productId);
   return formData;
-}
-
-function extractDigits(value: string) {
-  return value.replace(/\D/g, "");
-}
-
-function formatBrlFromDigits(digits: string) {
-  if (!digits) {
-    return "";
-  }
-
-  const value = Number(digits) / 100;
-  return formatCurrency(value);
-}
-
-function formatBrlFromNumber(value: number | null) {
-  if (value === null || !Number.isFinite(value)) {
-    return "";
-  }
-
-  return formatCurrency(value);
-}
-
-function parseBrlToNumber(maskedValue: string) {
-  const digits = extractDigits(maskedValue);
-  if (!digits) {
-    return null;
-  }
-
-  return Number((Number(digits) / 100).toFixed(2));
-}
-
-function normalizeQuantityInput(rawValue: string) {
-  let sanitized = rawValue.replace(/[^0-9.,]/g, "").replace(/,/g, ".");
-  const dotIndex = sanitized.indexOf(".");
-  if (dotIndex !== -1) {
-    const integerPart = sanitized.slice(0, dotIndex);
-    const decimalPart = sanitized
-      .slice(dotIndex + 1)
-      .replace(/\./g, "")
-      .slice(0, 3);
-    sanitized = `${integerPart}.${decimalPart}`;
-  }
-
-  return sanitized;
-}
-
-function shouldBlockNumericChar(event: KeyboardEvent<HTMLInputElement>) {
-  if (event.ctrlKey || event.metaKey || event.altKey) {
-    return false;
-  }
-
-  return ["e", "E", "+", "-", "@"].includes(event.key);
 }
 
 export function MyProductsList({ listId, products, categories }: MyProductsListProps) {
@@ -396,7 +345,11 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
       return;
     }
 
-    if (shouldBlockNumericChar(event)) {
+    if (event.ctrlKey || event.metaKey || event.altKey) {
+      return;
+    }
+
+    if (isBlockedNumericKey(event.key)) {
       event.preventDefault();
     }
   }
@@ -505,7 +458,7 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                         title="Editar valor pago"
                         type="button"
                       >
-                        Valor: {formatCurrency(product.paidPrice)}
+                        Valor: {formatCurrencyBRL(product.paidPrice)}
                       </button>
                     ) : null}
                   </div>
@@ -610,8 +563,7 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                 inputMode="numeric"
                 name="paidPrice"
                 onChange={(event) => {
-                  const digits = extractDigits(event.target.value);
-                  setPriceInput(formatBrlFromDigits(digits));
+                  setPriceInput(formatBrlFromDigits(extractDigits(event.target.value)));
                 }}
                 placeholder="R$ 0,00"
                 required
@@ -718,10 +670,9 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                         className="input bulk-price-input"
                         inputMode="numeric"
                         onChange={(event) => {
-                          const digits = extractDigits(event.target.value);
                           setBulkPriceInputs((current) => ({
                             ...current,
-                            [product.id]: formatBrlFromDigits(digits),
+                            [product.id]: formatBrlFromDigits(extractDigits(event.target.value)),
                           }));
                         }}
                         placeholder="R$ 0,00"

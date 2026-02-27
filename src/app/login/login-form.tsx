@@ -6,8 +6,6 @@ import { useToast } from "@/components/toast-provider";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui/button";
 
-const SUBMIT_DEBOUNCE_MS = 2_000;
-
 type AuthErrorLike = {
   status?: number;
   name?: string;
@@ -17,9 +15,7 @@ type AuthErrorLike = {
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [isCooldown, setIsCooldown] = useState(false);
-  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isSending, setIsSending] = useState(false);
   const callbackErrorToastShownRef = useRef(false);
   const searchParams = useSearchParams();
   const { pushToast } = useToast();
@@ -40,93 +36,81 @@ export function LoginForm() {
     });
   }, [callbackError, pushToast]);
 
-  useEffect(() => {
-    return () => {
-      if (cooldownTimerRef.current) {
-        clearTimeout(cooldownTimerRef.current);
-      }
-    };
-  }, []);
-
-  function startSubmitCooldown() {
-    setIsCooldown(true);
-    if (cooldownTimerRef.current) {
-      clearTimeout(cooldownTimerRef.current);
-    }
-
-    cooldownTimerRef.current = setTimeout(() => {
-      setIsCooldown(false);
-      cooldownTimerRef.current = null;
-    }, SUBMIT_DEBOUNCE_MS);
-  }
-
   function mapMagicLinkError(error: AuthErrorLike) {
     const normalizedStatus = Number(error.status ?? 0);
+    const normalizedMessage = String(error.message ?? "").toLowerCase();
+    const isRateLimitMessage =
+      normalizedMessage.includes("rate limit") || normalizedMessage.includes("too many requests");
 
-    if (normalizedStatus === 429) {
+    if (normalizedStatus === 429 || isRateLimitMessage) {
       return "Muitas tentativas. Aguarde 60s e tente novamente.";
     }
 
     if (normalizedStatus === 400 || normalizedStatus === 422) {
-      return "Email invalido ou configuracao de login incompleta.";
+      return "Nao foi possivel enviar o link. Verifique seu email e tente novamente.";
+    }
+
+    if (normalizedStatus === 403) {
+      return "Login por email nao esta habilitado ou nao permitido.";
+    }
+
+    if (normalizedStatus === 404 || normalizedStatus === 500) {
+      return "Falha temporaria. Tente novamente.";
     }
 
     if (normalizedStatus >= 500) {
-      return "Falha temporaria do servico. Tente novamente em instantes.";
+      return "Falha temporaria. Tente novamente.";
     }
 
-    return "Nao foi possivel enviar o Magic Link. Tente novamente.";
+    return "Falha ao enviar Magic Link. Verifique configuracoes e tente novamente.";
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (isLoading || isCooldown) {
-      if (isCooldown) {
-        pushToast({
-          kind: "error",
-          message: "Aguarde 2 segundos antes de tentar novamente.",
-        });
-      }
+    if (isSending) {
       return;
     }
 
-    setIsLoading(true);
-    startSubmitCooldown();
+    setIsSending(true);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const emailRedirectTo = `${window.location.origin}/auth/callback`;
 
-    const supabase = createSupabaseBrowserClient();
-    const emailRedirectTo = `${window.location.origin}/auth/callback`;
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo },
+      });
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo },
-    });
+      if (error) {
+        const safeErrorSnapshot = {
+          status: Number(error.status ?? 0) || undefined,
+          code: (error as AuthErrorLike).code ?? undefined,
+          msg: error.message ?? undefined,
+        };
 
-    if (error) {
-      const safeErrorSnapshot = {
-        status: Number(error.status ?? 0) || undefined,
-        name: error.name ?? undefined,
-        message: error.message ?? undefined,
-        code: (error as AuthErrorLike).code ?? undefined,
-      };
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[auth-otp]", safeErrorSnapshot);
+        }
 
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[Auth:signInWithOtp] failed", safeErrorSnapshot);
+        pushToast({
+          kind: "error",
+          message: mapMagicLinkError({
+            status: safeErrorSnapshot.status,
+            code: safeErrorSnapshot.code,
+            message: safeErrorSnapshot.msg,
+          }),
+        });
+        return;
       }
 
       pushToast({
-        kind: "error",
-        message: mapMagicLinkError(safeErrorSnapshot),
+        kind: "success",
+        message: "Magic Link enviado. Verifique seu email para continuar.",
       });
-      setIsLoading(false);
-      return;
+    } finally {
+      setIsSending(false);
     }
-
-    pushToast({
-      kind: "success",
-      message: "Magic Link enviado. Verifique seu email para continuar.",
-    });
-    setIsLoading(false);
   }
 
   return (
@@ -149,8 +133,8 @@ export function LoginForm() {
         required
       />
 
-      <Button disabled={isLoading || isCooldown} type="submit">
-        {isLoading ? "Enviando..." : "Enviar Magic Link"}
+      <Button disabled={isSending} type="submit">
+        {isSending ? "Enviando..." : "Enviar Magic Link"}
       </Button>
     </form>
   );

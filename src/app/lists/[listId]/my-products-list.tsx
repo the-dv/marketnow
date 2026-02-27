@@ -212,6 +212,7 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
 
           {products.map((product) => {
             const isBusy = isPending && pendingProductId === product.id;
+            const checkboxId = `purchased-${product.id}`;
 
             return (
               <form
@@ -223,13 +224,17 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                 <input type="hidden" name="productId" value={product.id} />
 
                 <div className="checkbox-cell" data-label="">
-                  <input
-                    aria-label="Comprado"
-                    type="checkbox"
-                    checked={product.purchased}
-                    disabled={isBusy}
-                    onChange={(event) => handleCheckboxChange(product, event.target.checked)}
-                  />
+                  <label className="checkbox-hitarea" htmlFor={checkboxId}>
+                    <input
+                      aria-label="Comprado"
+                      checked={product.purchased}
+                      className="list-checkbox-input"
+                      disabled={isBusy}
+                      id={checkboxId}
+                      onChange={(event) => handleCheckboxChange(product, event.target.checked)}
+                      type="checkbox"
+                    />
+                  </label>
                 </div>
 
                 <div className="product-name-cell" data-label="Nome">

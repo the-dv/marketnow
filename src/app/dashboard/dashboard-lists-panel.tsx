@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, KeyboardEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DeleteIconButton } from "@/components/delete-icon-button";
 import { useToast } from "@/components/toast-provider";
@@ -96,6 +95,27 @@ export function DashboardListsPanel({ lists, hasLoadError }: DashboardListsPanel
     setPendingListId(null);
   }
 
+  function handleCardClick(list: ShoppingListRow) {
+    if (list.status !== "active") {
+      return;
+    }
+
+    router.push(`/lists/${list.id}`);
+  }
+
+  function handleCardKeyDown(event: KeyboardEvent<HTMLElement>, list: ShoppingListRow) {
+    if (list.status !== "active") {
+      return;
+    }
+
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    router.push(`/lists/${list.id}`);
+  }
+
   return (
     <>
       <section className="card stack-sm">
@@ -140,24 +160,22 @@ export function DashboardListsPanel({ lists, hasLoadError }: DashboardListsPanel
           const isBusy = pendingListId === list.id;
 
           return (
-            <article className={`list-card ${isArchived ? "list-card-archived" : ""}`} key={list.id}>
-              {isArchived ? (
-                <div className="list-card-main list-card-main-disabled stack-sm">
-                  <h3>{list.name}</h3>
-                  <p className="text-muted">
-                    Status: <strong>Arquivada</strong>
-                  </p>
-                </div>
-              ) : (
-                <Link className="list-card-main list-card-main-clickable stack-sm" href={`/lists/${list.id}`}>
-                  <h3>{list.name}</h3>
-                  <p className="text-muted">
-                    Status: <strong>Ativa</strong>
-                  </p>
-                </Link>
-              )}
+            <article
+              className={`list-card ${isArchived ? "list-card-archived" : "list-card-clickable"}`}
+              key={list.id}
+              onClick={isArchived ? undefined : () => handleCardClick(list)}
+              onKeyDown={isArchived ? undefined : (event) => handleCardKeyDown(event, list)}
+              role={isArchived ? undefined : "link"}
+              tabIndex={isArchived ? -1 : 0}
+            >
+              <div className={`list-card-main ${isArchived ? "list-card-main-disabled" : ""} stack-sm`}>
+                <h3>{list.name}</h3>
+                <p className="text-muted">
+                  Status: <strong>{isArchived ? "Arquivada" : "Ativa"}</strong>
+                </p>
+              </div>
 
-              <div className="row-actions">
+              <div className="row-actions" onClick={(event) => event.stopPropagation()}>
                 <button
                   className="button button-secondary button-nowrap"
                   disabled={isBusy}

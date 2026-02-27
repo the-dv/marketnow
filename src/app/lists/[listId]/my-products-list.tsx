@@ -190,7 +190,7 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
       ) : (
         <div className="products-grid-wrapper">
           <div className="products-grid-head">
-            <span>Comprado</span>
+            <span aria-hidden="true" className="checkbox-header-spacer" />
             <span>Nome</span>
             <span>Categoria</span>
             <span>Qtd</span>
@@ -210,7 +210,7 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                 <input type="hidden" name="listId" value={listId} />
                 <input type="hidden" name="productId" value={product.id} />
 
-                <div className="checkbox-cell" data-label="Comprado">
+                <div className="checkbox-cell" data-label="">
                   <input
                     aria-label="Comprado"
                     type="checkbox"

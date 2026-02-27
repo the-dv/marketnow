@@ -258,7 +258,7 @@ body {
 .products-grid-head,
 .products-grid-row {
   display: grid;
-  grid-template-columns: 48px minmax(260px, 1fr) 170px 88px 90px 64px;
+  grid-template-columns: 34px minmax(260px, 1fr) 170px 88px 90px 56px;
   gap: 0.65rem;
   align-items: center;
 }
@@ -267,15 +267,15 @@ body {
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 600;
-  padding: 0.1rem 0.5rem;
+  padding: 0.1rem 0.4rem;
 }
 
 .products-grid-row {
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 0.7rem;
+  padding: 0.65rem;
   background: var(--surface);
-  min-width: 760px;
+  min-width: 730px;
 }
 
 .feedback-slot {
@@ -287,6 +287,15 @@ body {
   justify-content: center;
   align-items: center;
   align-self: center;
+  padding: 0;
+}
+
+.checkbox-cell input {
+  margin: 0;
+}
+
+.checkbox-header-spacer {
+  display: block;
 }
 
 .product-name-cell {
@@ -304,6 +313,7 @@ body {
   justify-content: flex-end;
   align-items: center;
   align-self: center;
+  padding: 0;
 }
 
 .icon-button {

@@ -18,6 +18,7 @@ Este arquivo registra tarefas que dependem de painel externo (Supabase/Vercel) e
    - `supabase/migrations/20260226_categories_alignment.sql`
    - `supabase/migrations/20260226_dynamic_shopping_flow.sql`
    - `supabase/migrations/20260227_category_nullable_guard.sql`
+   - `supabase/migrations/20260227_fix_optional_category_id.sql`
 4. Executar `supabase/seed.sql`.
 
 ### Validacao rapida (SQL)
@@ -134,4 +135,30 @@ where table_schema = 'public'
 3. Testar no app:
    - criar produto com categoria vazia
    - validar grid alinhada com 4+ produtos em `/lists/:id`
+
+## STEP-10 (obrigatorio apos merge local)
+
+Para corrigir definitivamente categoria opcional:
+
+1. Abrir Supabase Dashboard -> SQL Editor.
+2. Executar:
+   - `supabase/migrations/20260227_fix_optional_category_id.sql`
+3. Validar coluna nullable:
+
+```sql
+select is_nullable
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'products'
+  and column_name = 'category_id';
+```
+
+Resultado esperado: `YES`.
+
+4. Validar com insert de teste (ajuste IDs para seu ambiente):
+
+```sql
+insert into public.products (slug, name, owner_user_id, category_id, unit, is_active)
+values ('teste-sem-categoria-manual', 'Teste sem categoria', '<SEU_USER_ID>', null, 'un', true);
+```
 

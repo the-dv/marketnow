@@ -19,6 +19,7 @@ import {
   recordProductPurchaseAction,
   softDeleteUserProductAction,
   type PurchaseActionState,
+  unpurchaseAllListItemsAction,
   updateUserProductDetailsAction,
 } from "./actions";
 
@@ -45,7 +46,7 @@ type MyProductsListProps = {
   categories: CategoryOption[];
 };
 
-type BulkStep = "decision" | "prices" | null;
+type BulkStep = "decision" | "prices" | "unpurchase" | null;
 
 const UNIT_OPTIONS: Array<"un" | "kg" | "L"> = ["un", "kg", "L"];
 
@@ -257,6 +258,20 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
     });
   }
 
+  function runBulkUnpurchase() {
+    startTransition(async () => {
+      setPendingProductId("__bulk__");
+      const result = (await unpurchaseAllListItemsAction(listId)) as PurchaseActionState;
+      pushToast({ kind: result.status, message: result.message });
+      setPendingProductId(null);
+
+      if (result.status === "success") {
+        closeBulkModal();
+        router.refresh();
+      }
+    });
+  }
+
   async function handleUncheck(productId: string) {
     setPendingProductId(productId);
 
@@ -301,7 +316,16 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
   }
 
   function handleSelectAllCheckboxChange(checked: boolean) {
-    if (!checked || products.length === 0) {
+    if (products.length === 0) {
+      return;
+    }
+
+    if (!checked && allPurchased) {
+      setBulkStep("unpurchase");
+      return;
+    }
+
+    if (!checked) {
       return;
     }
 
@@ -412,14 +436,19 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
         <div className="products-grid-wrapper">
           <div className="products-grid-head">
             <span className="checkbox-header-cell">
-              <input
-                aria-label="Selecionar todos"
-                checked={allPurchased}
-                className="list-checkbox-input header-checkbox-input"
-                onChange={(event) => handleSelectAllCheckboxChange(event.target.checked)}
-                ref={selectAllCheckboxRef}
-                type="checkbox"
-              />
+              <label className="checkbox-hitarea" htmlFor="selectAllProductsCheckbox" title="Marcar todos os itens">
+                <input
+                  aria-checked={somePurchased ? "mixed" : allPurchased}
+                  aria-label="Marcar todos os itens"
+                  checked={allPurchased}
+                  className="list-checkbox-input header-checkbox-input"
+                  id="selectAllProductsCheckbox"
+                  onChange={(event) => handleSelectAllCheckboxChange(event.target.checked)}
+                  ref={selectAllCheckboxRef}
+                  title="Marcar todos os itens"
+                  type="checkbox"
+                />
+              </label>
             </span>
             <span>Nome</span>
             <span>Categoria</span>
@@ -627,7 +656,11 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
           >
             <div className="row-between">
               <h3 className="subheading" id="bulk-purchase-title">
-                {bulkStep === "decision" ? "Marcar todos como comprados" : "Informar precos"}
+                {bulkStep === "decision"
+                  ? "Marcar todos como comprados"
+                  : bulkStep === "unpurchase"
+                    ? "Desmarcar todos como comprados"
+                    : "Informar precos"}
               </h3>
               <button className="modal-close-button" onClick={closeBulkModal} type="button">
                 X
@@ -649,6 +682,20 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                     type="button"
                   >
                     Nao, apenas marcar
+                  </button>
+                </div>
+              </>
+            ) : bulkStep === "unpurchase" ? (
+              <>
+                <p className="text-muted">
+                  Desmarcar todos como comprados? Isso removera os valores pagos desta lista.
+                </p>
+                <div className="row-actions">
+                  <button className="button" onClick={runBulkUnpurchase} type="button">
+                    Desmarcar todos
+                  </button>
+                  <button className="button button-secondary" onClick={closeBulkModal} type="button">
+                    Cancelar
                   </button>
                 </div>
               </>

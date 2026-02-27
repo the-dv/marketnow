@@ -23,6 +23,7 @@ Este arquivo registra tarefas que dependem de painel externo (Supabase/Vercel) e
    - `supabase/migrations/202602271330_create_default_category_outros.sql`
    - `supabase/migrations/202602271730_bulk_mark_products_purchased.sql`
    - `supabase/migrations/202602271900_fix_bulk_on_conflict_uniques.sql`
+   - `supabase/migrations/202602272030_enable_unpurchase_bulk.sql`
 4. Executar `supabase/seed.sql`.
 
 ### Validacao rapida (SQL)
@@ -235,4 +236,24 @@ order by tablename, indexname;
 
 4. Confirmar que existe indice unico para:
    - `shopping_list_items (shopping_list_id, product_id)`
+
+## STEP-19 (obrigatorio para desmarcar todos no header)
+
+1. Abrir Supabase Dashboard -> SQL Editor.
+2. Executar:
+   - `supabase/migrations/202602272030_enable_unpurchase_bulk.sql`
+3. Validar policy de update em `shopping_list_items`:
+
+```sql
+select schemaname, tablename, policyname, cmd, qual, with_check
+from pg_policies
+where schemaname = 'public'
+  and tablename = 'shopping_list_items'
+  and cmd = 'UPDATE';
+```
+
+4. Teste no app:
+   - abrir `/lists/:id` com todos os itens comprados
+   - clicar no checkbox do header e confirmar "Desmarcar todos"
+   - validar `purchased_at`, `paid_price` e `paid_currency` limpos nos itens da lista
 

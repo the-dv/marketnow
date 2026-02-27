@@ -725,6 +725,40 @@ export async function bulkMarkProductsPurchasedAction(
   }
 }
 
+export async function unpurchaseAllListItemsAction(listId: string): Promise<PurchaseActionState> {
+  const normalizedListId = listId.trim();
+  if (!normalizedListId) {
+    return { status: "error", message: "Lista invalida." };
+  }
+
+  try {
+    const { supabase, userId } = await requireUserContext();
+    await assertListOwnership(supabase, normalizedListId, userId);
+
+    const { error } = await supabase
+      .from("shopping_list_items")
+      .update({
+        purchased_at: null,
+        paid_price: null,
+        paid_currency: null,
+      })
+      .eq("shopping_list_id", normalizedListId);
+
+    if (error) {
+      logSupabaseError("unpurchaseAllListItemsAction.updateItems", error);
+      return {
+        status: "error",
+        message: withDevErrorDetails("Nao foi possivel desmarcar todos os itens.", error),
+      };
+    }
+
+    revalidatePath(`/lists/${normalizedListId}`);
+    return { status: "success", message: "Todos os itens foram desmarcados." };
+  } catch {
+    return { status: "error", message: "Falha de autenticacao ou permissao." };
+  }
+}
+
 export async function softDeleteUserProductAction(
   formData: FormData,
 ): Promise<PurchaseActionState> {

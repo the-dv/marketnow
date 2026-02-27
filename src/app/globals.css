@@ -30,9 +30,13 @@ body {
 }
 
 .container {
-  max-width: 760px;
+  max-width: 900px;
   margin: 0 auto;
   padding: 2rem 1rem;
+}
+
+.container-wide {
+  max-width: 1180px;
 }
 
 .card {
@@ -248,37 +252,56 @@ body {
 .products-grid-wrapper {
   display: grid;
   gap: 0.5rem;
+  overflow-x: auto;
 }
 
 .products-grid-head,
 .products-grid-row {
   display: grid;
-  grid-template-columns: 2fr 1.25fr 1fr 1fr auto;
-  gap: 0.75rem;
-  align-items: center;
+  grid-template-columns: 48px minmax(260px, 1fr) 170px 88px 90px 64px;
+  gap: 0.65rem;
+  align-items: start;
 }
 
 .products-grid-head {
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 600;
-  padding: 0.1rem 0.25rem;
+  padding: 0.1rem 0.5rem;
 }
 
 .products-grid-row {
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 0.75rem;
+  padding: 0.7rem;
   background: var(--surface);
+  min-width: 760px;
+}
+
+.feedback-slot {
+  min-height: 1.2rem;
+}
+
+.checkbox-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .product-name-cell {
   min-width: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.category-cell .input {
+  min-width: 160px;
 }
 
 .actions-cell {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
 }
 
 .icon-button {
@@ -317,6 +340,10 @@ body {
   background: #ffeef1;
 }
 
+.icon-button-danger:focus-visible {
+  outline: 2px solid rgb(197 31 57 / 38%);
+}
+
 .icon-button:focus-visible {
   outline: 2px solid rgb(11 95 255 / 35%);
 }
@@ -329,10 +356,11 @@ body {
 .quantity-input {
   width: 88px;
   min-width: 72px;
+  text-align: right;
 }
 
 .unit-input {
-  width: 88px;
+  width: 90px;
   min-width: 72px;
 }
 
@@ -427,11 +455,36 @@ body {
 
   .products-grid-row {
     grid-template-columns: 1fr;
+    min-width: 0;
+    gap: 0.5rem;
   }
 
   .quantity-input,
   .unit-input {
     width: 100%;
+  }
+
+  .checkbox-cell,
+  .product-name-cell,
+  .category-cell,
+  .quantity-cell,
+  .unit-cell,
+  .actions-cell {
+    width: 100%;
+  }
+
+  .checkbox-cell::before,
+  .product-name-cell::before,
+  .category-cell::before,
+  .quantity-cell::before,
+  .unit-cell::before,
+  .actions-cell::before {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 0.2rem;
+    font-weight: 600;
+    content: attr(data-label);
   }
 
   .actions-cell {

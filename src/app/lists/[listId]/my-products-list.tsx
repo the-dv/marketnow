@@ -179,19 +179,22 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
         <span className="text-muted">{productsCountLabel}</span>
       </div>
 
-      {feedback ? (
-        <p className={feedback.status === "success" ? "text-success" : "text-error"}>{feedback.message}</p>
-      ) : null}
+      <div className="feedback-slot" aria-live="polite">
+        {feedback ? (
+          <p className={feedback.status === "success" ? "text-success" : "text-error"}>{feedback.message}</p>
+        ) : null}
+      </div>
 
       {products.length === 0 ? (
         <p className="text-muted">Nenhum produto cadastrado ainda.</p>
       ) : (
         <div className="products-grid-wrapper">
           <div className="products-grid-head">
+            <span>OK</span>
             <span>Nome</span>
             <span>Categoria</span>
-            <span>Quantidade</span>
-            <span>Unidade</span>
+            <span>Qtd</span>
+            <span>Unid.</span>
             <span>Acoes</span>
           </div>
 
@@ -207,18 +210,17 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                 <input type="hidden" name="listId" value={listId} />
                 <input type="hidden" name="productId" value={product.id} />
 
-                <div className="product-name-cell stack-sm">
-                  <label className="checkline" htmlFor={`product-check-${product.id}`}>
-                    <input
-                      id={`product-check-${product.id}`}
-                      type="checkbox"
-                      checked={product.purchased}
-                      disabled={isBusy}
-                      onChange={(event) => handleCheckboxChange(product, event.target.checked)}
-                    />
-                    <span className="text-muted">Comprado</span>
-                  </label>
+                <div className="checkbox-cell" data-label="Comprado">
+                  <input
+                    aria-label={`Marcar ${product.name} como comprado`}
+                    type="checkbox"
+                    checked={product.purchased}
+                    disabled={isBusy}
+                    onChange={(event) => handleCheckboxChange(product, event.target.checked)}
+                  />
+                </div>
 
+                <div className="product-name-cell" data-label="Nome">
                   <input
                     className="input"
                     name="name"
@@ -229,62 +231,71 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                     onKeyDown={handleFieldEnter}
                     required
                   />
-
                   {product.purchased && product.paidPrice ? (
                     <span className="text-success product-meta">Pago: {formatCurrency(product.paidPrice)}</span>
                   ) : null}
                 </div>
 
-                <select
-                  className="input"
-                  name="categoryId"
-                  defaultValue={product.categoryId ?? ""}
-                  onBlur={(event) => event.currentTarget.form?.requestSubmit()}
-                  onKeyDown={handleFieldEnter}
-                  disabled={isBusy}
-                >
-                  <option value="">Sem categoria</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="category-cell" data-label="Categoria">
+                  <select
+                    className="input"
+                    name="categoryId"
+                    defaultValue={product.categoryId ?? ""}
+                    onBlur={(event) => event.currentTarget.form?.requestSubmit()}
+                    onChange={(event) => event.currentTarget.form?.requestSubmit()}
+                    onKeyDown={handleFieldEnter}
+                    disabled={isBusy}
+                    title={product.categoryName}
+                  >
+                    <option value="">Sem categoria</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                <input
-                  className="input quantity-input"
-                  type="number"
-                  min="0.001"
-                  step="0.001"
-                  name="quantity"
-                  defaultValue={String(product.quantity)}
-                  onBlur={(event) => event.currentTarget.form?.requestSubmit()}
-                  onKeyDown={handleFieldEnter}
-                  disabled={isBusy}
-                />
+                <div className="quantity-cell" data-label="Quantidade">
+                  <input
+                    className="input quantity-input"
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    name="quantity"
+                    defaultValue={String(product.quantity)}
+                    onBlur={(event) => event.currentTarget.form?.requestSubmit()}
+                    onKeyDown={handleFieldEnter}
+                    disabled={isBusy}
+                  />
+                </div>
 
-                <select
-                  className="input unit-input"
-                  name="unit"
-                  defaultValue={product.unit}
-                  onBlur={(event) => event.currentTarget.form?.requestSubmit()}
-                  onKeyDown={handleFieldEnter}
-                  disabled={isBusy}
-                >
-                  {UNIT_OPTIONS.map((unitOption) => (
-                    <option key={unitOption} value={unitOption}>
-                      {unitOption}
-                    </option>
-                  ))}
-                </select>
+                <div className="unit-cell" data-label="Unidade">
+                  <select
+                    className="input unit-input"
+                    name="unit"
+                    defaultValue={product.unit}
+                    onBlur={(event) => event.currentTarget.form?.requestSubmit()}
+                    onChange={(event) => event.currentTarget.form?.requestSubmit()}
+                    onKeyDown={handleFieldEnter}
+                    disabled={isBusy}
+                  >
+                    {UNIT_OPTIONS.map((unitOption) => (
+                      <option key={unitOption} value={unitOption}>
+                        {unitOption}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                <div className="actions-cell">
+                <div className="actions-cell" data-label="Acoes">
                   <button
                     aria-label={`Excluir ${product.name}`}
                     className="icon-button icon-button-danger"
                     onClick={() => handleDeleteProduct(product)}
                     type="button"
                     disabled={isBusy}
+                    title="Excluir produto"
                   >
                     <Trash2 size={16} />
                   </button>

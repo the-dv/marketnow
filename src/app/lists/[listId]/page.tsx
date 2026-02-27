@@ -163,7 +163,7 @@ export default async function ListDetailsPage({
   });
 
   return (
-    <main className="container stack-lg">
+    <main className="container container-wide stack-lg">
       <section className="card stack-sm">
         <div className="row-between">
           <h1 className="heading">{list.name}</h1>

@@ -115,3 +115,23 @@ where table_schema = 'public'
    - editar categoria para `Outros` e voltar para `Sem categoria`
    - marcar comprado, informar preco e depois excluir produto comprado para validar total atualizado
 
+## STEP-09 (obrigatorio apos merge local)
+
+Para estabilizar cadastro sem categoria e layout da grade:
+
+1. Confirmar migracao nullable aplicada:
+   - `supabase/migrations/20260227_category_nullable_guard.sql`
+2. Validar coluna:
+
+```sql
+select is_nullable
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'products'
+  and column_name = 'category_id';
+```
+
+3. Testar no app:
+   - criar produto com categoria vazia
+   - validar grid alinhada com 4+ produtos em `/lists/:id`
+

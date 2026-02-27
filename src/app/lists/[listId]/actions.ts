@@ -15,6 +15,62 @@ export type PurchaseActionState = {
   message: string;
 };
 
+type SupabaseErrorLike = {
+  message?: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+};
+
+function asSupabaseError(error: unknown): SupabaseErrorLike | null {
+  if (!error || typeof error !== "object") {
+    return null;
+  }
+
+  const candidate = error as SupabaseErrorLike;
+  if (!candidate.message && !candidate.code && !candidate.details && !candidate.hint) {
+    return null;
+  }
+
+  return candidate;
+}
+
+function logSupabaseError(context: string, error: unknown) {
+  const parsedError = asSupabaseError(error);
+  if (!parsedError) {
+    return;
+  }
+
+  console.error(`[Supabase:${context}]`, {
+    message: parsedError.message,
+    code: parsedError.code,
+    details: parsedError.details,
+    hint: parsedError.hint,
+  });
+}
+
+function withDevErrorDetails(baseMessage: string, error: unknown) {
+  if (process.env.NODE_ENV === "production") {
+    return baseMessage;
+  }
+
+  const parsedError = asSupabaseError(error);
+  if (!parsedError) {
+    return baseMessage;
+  }
+
+  const details = [
+    parsedError.message,
+    parsedError.code ? `code=${parsedError.code}` : null,
+    parsedError.details ? `details=${parsedError.details}` : null,
+    parsedError.hint ? `hint=${parsedError.hint}` : null,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
+  return details ? `${baseMessage} (${details})` : baseMessage;
+}
+
 async function requireUserContext() {
   const supabase = await createSupabaseServerClient();
   const {
@@ -153,7 +209,7 @@ async function resolveCategoryId(
   rawCategoryId: string,
 ) {
   const normalized = rawCategoryId.trim();
-  if (!normalized) {
+  if (!normalized || normalized.toLowerCase() === "null" || normalized.toLowerCase() === "undefined") {
     return null;
   }
 
@@ -230,7 +286,11 @@ export async function createUserProductAction(
       .single();
 
     if (error || !createdProduct) {
-      return { status: "error", message: "Nao foi possivel salvar o produto." };
+      logSupabaseError("createUserProductAction.insertProduct", error);
+      return {
+        status: "error",
+        message: withDevErrorDetails("Nao foi possivel salvar o produto.", error),
+      };
     }
 
     const { error: addToListError } = await supabase.from("shopping_list_items").insert({
@@ -241,13 +301,24 @@ export async function createUserProductAction(
     });
 
     if (addToListError) {
-      return { status: "error", message: "Produto criado, mas nao foi adicionado a lista." };
+      logSupabaseError("createUserProductAction.insertShoppingItem", addToListError);
+      return {
+        status: "error",
+        message: withDevErrorDetails(
+          "Produto criado, mas nao foi adicionado a lista.",
+          addToListError,
+        ),
+      };
     }
 
     revalidatePath(`/lists/${listId}`);
     return { status: "success", message: "Produto salvo com sucesso." };
-  } catch {
-    return { status: "error", message: "Falha de autenticacao ou permissao." };
+  } catch (error) {
+    logSupabaseError("createUserProductAction.catch", error);
+    return {
+      status: "error",
+      message: withDevErrorDetails("Falha de autenticacao ou permissao.", error),
+    };
   }
 }
 

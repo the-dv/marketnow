@@ -43,9 +43,10 @@ export function LoginForm() {
     const normalizedMessage = String(error.message ?? "").toLowerCase();
     const isRateLimitMessage =
       normalizedMessage.includes("rate limit") || normalizedMessage.includes("too many requests");
+    const isEmailSendRateLimit = error.code === "over_email_send_rate_limit";
 
-    if (normalizedStatus === 429 || isRateLimitMessage) {
-      return "Muitas tentativas. Aguarde 60s e tente novamente.";
+    if (normalizedStatus === 429 || isRateLimitMessage || isEmailSendRateLimit) {
+      return "Limite de envio de email atingido no Supabase. Aguarde alguns minutos e tente novamente.";
     }
 
     if (normalizedStatus === 400 || normalizedStatus === 422) {

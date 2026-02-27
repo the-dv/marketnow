@@ -46,7 +46,7 @@ export function LoginForm() {
     const isEmailSendRateLimit = error.code === "over_email_send_rate_limit";
 
     if (normalizedStatus === 429 || isRateLimitMessage || isEmailSendRateLimit) {
-      return "Limite de envio de email atingido no Supabase. Aguarde alguns minutos e tente novamente.";
+      return "Limite de envio de emails do Supabase atingido. Aguarde e tente depois.";
     }
 
     if (normalizedStatus === 400 || normalizedStatus === 422) {
@@ -70,10 +70,11 @@ export function LoginForm() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const page = window.location.pathname;
 
     if (isSending || otpInFlightRef.current) {
       if (process.env.NODE_ENV !== "production") {
-        console.warn("[auth-otp]", { skipped: true, reason: "already-sending" });
+        console.warn("[auth-otp]", { page, skipped: true, reason: "already-sending" });
       }
       return;
     }
@@ -84,6 +85,7 @@ export function LoginForm() {
 
     if (process.env.NODE_ENV !== "production") {
       console.warn("[auth-otp]", {
+        page,
         attemptId,
         ts: new Date().toISOString(),
         phase: "start",
@@ -107,7 +109,7 @@ export function LoginForm() {
         };
 
         if (process.env.NODE_ENV !== "production") {
-          console.warn("[auth-otp]", { attemptId, ...safeErrorSnapshot });
+          console.warn("[auth-otp]", { page, attemptId, ...safeErrorSnapshot });
         }
 
         pushToast({
@@ -128,6 +130,7 @@ export function LoginForm() {
 
       if (process.env.NODE_ENV !== "production") {
         console.warn("[auth-otp]", {
+          page,
           attemptId,
           ts: new Date().toISOString(),
           phase: "success",

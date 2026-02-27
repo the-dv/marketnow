@@ -1,8 +1,8 @@
 ﻿"use client";
 
 import { FormEvent, KeyboardEvent, useMemo, useState, useTransition } from "react";
-import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { DeleteIconButton } from "@/components/delete-icon-button";
 import { useToast } from "@/components/toast-provider";
 import {
   clearProductPurchaseAction,
@@ -310,16 +310,12 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                 </div>
 
                 <div className="actions-cell" data-label="Acoes">
-                  <button
-                    aria-label={`Excluir ${product.name}`}
-                    className="icon-button icon-button-danger"
-                    onClick={() => handleDeleteProduct(product)}
-                    type="button"
+                  <DeleteIconButton
                     disabled={isBusy}
+                    label={`Excluir ${product.name}`}
+                    onClick={() => handleDeleteProduct(product)}
                     title="Excluir produto"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  />
                 </div>
               </form>
             );

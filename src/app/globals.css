@@ -179,6 +179,7 @@ body {
 
 .row-form {
   display: flex;
+  align-items: center;
   gap: 0.75rem;
 }
 
@@ -203,13 +204,40 @@ body {
   flex: 1;
   color: inherit;
   text-decoration: none;
-  cursor: pointer;
   border-radius: 8px;
   padding: 0.25rem;
 }
 
 .list-card-main:focus-visible {
   outline: 2px solid rgb(11 95 255 / 35%);
+}
+
+.list-card-main-clickable {
+  cursor: pointer;
+}
+
+.list-card-main-clickable:hover {
+  background: rgb(11 95 255 / 6%);
+}
+
+.list-card-main-disabled {
+  cursor: default;
+  color: #5f6775;
+}
+
+.list-card-archived {
+  background: #f3f4f6;
+  border-color: #d6d9df;
+}
+
+.list-card-archived strong {
+  color: #4b5563;
+}
+
+.button-nowrap {
+  white-space: nowrap;
+  min-width: 128px;
+  padding: 0.75rem 1.5rem;
 }
 
 .row-grid {

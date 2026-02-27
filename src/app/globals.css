@@ -121,6 +121,20 @@ body {
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.button:hover {
+  background: #0a54e3;
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.button:focus-visible {
+  outline: 2px solid rgb(11 95 255 / 35%);
+  outline-offset: 2px;
 }
 
 .button:disabled {
@@ -132,8 +146,16 @@ body {
   background: #111111;
 }
 
+.button-secondary:hover {
+  background: #000;
+}
+
 .button-danger {
   background: #b00020;
+}
+
+.button-danger:hover {
+  background: #98001b;
 }
 
 .row-form {
@@ -270,16 +292,29 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
 }
 
 .icon-button svg {
   width: 1.05rem;
   height: 1.05rem;
-  fill: currentColor;
+  stroke: currentColor;
 }
 
 .icon-button:hover {
   border-color: #c8d0dd;
+  background: #f8fafc;
+}
+
+.icon-button-danger {
+  border-color: #f2c7ce;
+  color: #c51f39;
+}
+
+.icon-button-danger:hover {
+  border-color: #e58c9a;
+  color: #a50f2b;
+  background: #ffeef1;
 }
 
 .icon-button:focus-visible {
@@ -289,6 +324,16 @@ body {
 .icon-button:disabled {
   opacity: 0.65;
   cursor: not-allowed;
+}
+
+.quantity-input {
+  width: 88px;
+  min-width: 72px;
+}
+
+.unit-input {
+  width: 88px;
+  min-width: 72px;
 }
 
 .row-grid-user-product {
@@ -382,6 +427,11 @@ body {
 
   .products-grid-row {
     grid-template-columns: 1fr;
+  }
+
+  .quantity-input,
+  .unit-input {
+    width: 100%;
   }
 
   .actions-cell {

@@ -27,6 +27,7 @@ type UserProductRow = {
   id: string;
   name: string;
   unit: "un" | "kg" | "L";
+  category_id: string | null;
   category: ProductCategory | ProductCategory[] | null;
 };
 
@@ -117,7 +118,7 @@ export default async function ListDetailsPage({
 
   const { data: userProducts } = await supabase
     .from("products")
-    .select("id,name,unit,category:categories(name)")
+    .select("id,name,unit,category_id,category:categories(name)")
     .eq("owner_user_id", user.id)
     .eq("is_active", true)
     .order("created_at", { ascending: false });
@@ -152,6 +153,7 @@ export default async function ListDetailsPage({
     return {
       id: product.id,
       name: product.name,
+      categoryId: product.category_id,
       categoryName: getCategoryName(product.category),
       quantity: purchase?.quantity ? Number(purchase.quantity) : 1,
       unit: purchase?.unit ?? product.unit,
@@ -187,7 +189,11 @@ export default async function ListDetailsPage({
         <CreateProductForm action={createUserProductAction} categories={typedCategories} listId={listId} />
       </section>
 
-      <MyProductsList listId={listId} products={myProducts} />
+      <MyProductsList
+        categories={typedCategories.map((category) => ({ id: category.id, name: category.name }))}
+        listId={listId}
+        products={myProducts}
+      />
     </main>
   );
 }

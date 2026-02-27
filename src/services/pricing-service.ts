@@ -150,7 +150,15 @@ export async function estimateListTotal(
   });
 
   const estimatedTotal = Number(
-    estimatedItems.reduce((acc, item) => acc + item.itemTotal, 0).toFixed(2),
+    estimatedItems
+      .reduce((acc, item) => {
+        if (!item.purchasedAt || item.paidPrice === undefined) {
+          return acc;
+        }
+
+        return acc + item.paidPrice;
+      }, 0)
+      .toFixed(2),
   );
 
   return {

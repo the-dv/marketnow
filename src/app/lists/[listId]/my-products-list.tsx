@@ -1,18 +1,20 @@
 ﻿"use client";
 
-import { FormEvent, useMemo, useState, useTransition } from "react";
+import { FormEvent, KeyboardEvent, useMemo, useState, useTransition } from "react";
+import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   clearProductPurchaseAction,
   recordProductPurchaseAction,
   softDeleteUserProductAction,
   type PurchaseActionState,
-  updateProductListStateAction,
+  updateUserProductDetailsAction,
 } from "./actions";
 
 type MyProductEntry = {
   id: string;
   name: string;
+  categoryId: string | null;
   categoryName: string;
   quantity: number;
   unit: "un" | "kg" | "L";
@@ -20,9 +22,15 @@ type MyProductEntry = {
   paidPrice: number | null;
 };
 
+type CategoryOption = {
+  id: string;
+  name: string;
+};
+
 type MyProductsListProps = {
   listId: string;
   products: MyProductEntry[];
+  categories: CategoryOption[];
 };
 
 type Feedback = {
@@ -46,7 +54,7 @@ function buildFormData(listId: string, productId: string) {
   return formData;
 }
 
-export function MyProductsList({ listId, products }: MyProductsListProps) {
+export function MyProductsList({ listId, products, categories }: MyProductsListProps) {
   const router = useRouter();
   const [activeProduct, setActiveProduct] = useState<MyProductEntry | null>(null);
   const [priceInput, setPriceInput] = useState("");
@@ -115,15 +123,13 @@ export function MyProductsList({ listId, products }: MyProductsListProps) {
     });
   }
 
-  function persistListState(productId: string, quantityRaw: string, unit: "un" | "kg" | "L") {
+  function handleRowSubmit(event: FormEvent<HTMLFormElement>, productId: string) {
+    event.preventDefault();
+
     startTransition(async () => {
       setPendingProductId(productId);
-
-      const formData = buildFormData(listId, productId);
-      formData.append("quantity", quantityRaw);
-      formData.append("unit", unit);
-
-      const result = (await updateProductListStateAction(formData)) as PurchaseActionState;
+      const formData = new FormData(event.currentTarget);
+      const result = (await updateUserProductDetailsAction(formData)) as PurchaseActionState;
       setFeedback({ status: result.status, message: result.message });
       setPendingProductId(null);
 
@@ -133,12 +139,13 @@ export function MyProductsList({ listId, products }: MyProductsListProps) {
     });
   }
 
-  function handleStateSubmit(event: FormEvent<HTMLFormElement>, productId: string) {
+  function handleFieldEnter(event: KeyboardEvent<HTMLInputElement | HTMLSelectElement>) {
+    if (event.key !== "Enter") {
+      return;
+    }
+
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const quantityRaw = String(formData.get("quantity") ?? "1");
-    const unit = String(formData.get("unit") ?? "un") as "un" | "kg" | "L";
-    persistListState(productId, quantityRaw, unit);
+    event.currentTarget.form?.requestSubmit();
   }
 
   function handleDeleteProduct(product: MyProductEntry) {
@@ -195,8 +202,11 @@ export function MyProductsList({ listId, products }: MyProductsListProps) {
               <form
                 className="products-grid-row"
                 key={product.id}
-                onSubmit={(event) => handleStateSubmit(event, product.id)}
+                onSubmit={(event) => handleRowSubmit(event, product.id)}
               >
+                <input type="hidden" name="listId" value={listId} />
+                <input type="hidden" name="productId" value={product.id} />
+
                 <div className="product-name-cell stack-sm">
                   <label className="checkline" htmlFor={`product-check-${product.id}`}>
                     <input
@@ -206,33 +216,59 @@ export function MyProductsList({ listId, products }: MyProductsListProps) {
                       disabled={isBusy}
                       onChange={(event) => handleCheckboxChange(product, event.target.checked)}
                     />
-                    <span>
-                      <strong>{product.name}</strong>
-                      {product.purchased && product.paidPrice ? (
-                        <span className="text-success product-meta">Pago: {formatCurrency(product.paidPrice)}</span>
-                      ) : null}
-                    </span>
+                    <span className="text-muted">Comprado</span>
                   </label>
+
+                  <input
+                    className="input"
+                    name="name"
+                    defaultValue={product.name}
+                    disabled={isBusy}
+                    maxLength={120}
+                    onBlur={(event) => event.currentTarget.form?.requestSubmit()}
+                    onKeyDown={handleFieldEnter}
+                    required
+                  />
+
+                  {product.purchased && product.paidPrice ? (
+                    <span className="text-success product-meta">Pago: {formatCurrency(product.paidPrice)}</span>
+                  ) : null}
                 </div>
 
-                <span className="text-muted">{product.categoryName}</span>
+                <select
+                  className="input"
+                  name="categoryId"
+                  defaultValue={product.categoryId ?? ""}
+                  onBlur={(event) => event.currentTarget.form?.requestSubmit()}
+                  onKeyDown={handleFieldEnter}
+                  disabled={isBusy}
+                >
+                  <option value="">Sem categoria</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
 
                 <input
-                  className="input"
+                  className="input quantity-input"
                   type="number"
                   min="0.001"
                   step="0.001"
                   name="quantity"
                   defaultValue={String(product.quantity)}
                   onBlur={(event) => event.currentTarget.form?.requestSubmit()}
+                  onKeyDown={handleFieldEnter}
                   disabled={isBusy}
                 />
 
                 <select
-                  className="input"
+                  className="input unit-input"
                   name="unit"
                   defaultValue={product.unit}
-                  onChange={(event) => event.currentTarget.form?.requestSubmit()}
+                  onBlur={(event) => event.currentTarget.form?.requestSubmit()}
+                  onKeyDown={handleFieldEnter}
                   disabled={isBusy}
                 >
                   {UNIT_OPTIONS.map((unitOption) => (
@@ -245,14 +281,12 @@ export function MyProductsList({ listId, products }: MyProductsListProps) {
                 <div className="actions-cell">
                   <button
                     aria-label={`Excluir ${product.name}`}
-                    className="icon-button"
+                    className="icon-button icon-button-danger"
                     onClick={() => handleDeleteProduct(product)}
                     type="button"
                     disabled={isBusy}
                   >
-                    <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
-                      <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 6h2v9h-2V9Zm4 0h2v9h-2V9ZM7 9h2v9H7V9Z" />
-                    </svg>
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </form>

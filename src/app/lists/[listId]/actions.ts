@@ -148,6 +148,28 @@ async function getOwnedProduct(
   return product;
 }
 
+async function resolveCategoryId(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  rawCategoryId: string,
+) {
+  const normalized = rawCategoryId.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const { data: category, error } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("id", normalized)
+    .maybeSingle();
+
+  if (error || !category) {
+    throw new Error("VALIDATION_ERROR");
+  }
+
+  return category.id as string;
+}
+
 async function getCurrentListItem(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   listId: string,
@@ -191,20 +213,7 @@ export async function createUserProductAction(
   try {
     const { supabase, userId } = await requireUserContext();
     await assertListOwnership(supabase, listId, userId);
-
-    let categoryId: string | null = null;
-    if (rawCategoryId) {
-      const { data: category, error: categoryError } = await supabase
-        .from("categories")
-        .select("id")
-        .eq("id", rawCategoryId)
-        .maybeSingle();
-
-      if (categoryError || !category) {
-        return { status: "error", message: "Categoria invalida." };
-      }
-      categoryId = rawCategoryId;
-    }
+    const categoryId = await resolveCategoryId(supabase, rawCategoryId);
 
     const slug = createSlug(name, userId);
     const { data: createdProduct, error } = await supabase
@@ -239,6 +248,86 @@ export async function createUserProductAction(
     return { status: "success", message: "Produto salvo com sucesso." };
   } catch {
     return { status: "error", message: "Falha de autenticacao ou permissao." };
+  }
+}
+
+export async function updateUserProductDetailsAction(
+  formData: FormData,
+): Promise<PurchaseActionState> {
+  const listId = String(formData.get("listId") ?? "");
+  const productId = String(formData.get("productId") ?? "");
+  const rawName = formData.get("name");
+  const rawCategoryId = String(formData.get("categoryId") ?? "");
+  const rawQuantity = formData.get("quantity");
+  const rawUnit = formData.get("unit");
+
+  if (!listId || !productId) {
+    return { status: "error", message: "Dados invalidos." };
+  }
+
+  let name = "";
+  let quantity = 1;
+  let unit: "un" | "kg" | "L" = "un";
+
+  try {
+    name = parseName(rawName);
+    quantity = parseQuantityInput(rawQuantity);
+    unit = parseUnit(rawUnit);
+  } catch {
+    return { status: "error", message: "Nome, quantidade ou unidade invalidos." };
+  }
+
+  try {
+    const { supabase, userId } = await requireUserContext();
+    await assertListOwnership(supabase, listId, userId);
+    await getOwnedProduct(supabase, productId, userId);
+    const categoryId = await resolveCategoryId(supabase, rawCategoryId);
+
+    const { error: productUpdateError } = await supabase
+      .from("products")
+      .update({
+        name,
+        category_id: categoryId,
+      })
+      .eq("id", productId)
+      .eq("owner_user_id", userId)
+      .eq("is_active", true);
+
+    if (productUpdateError) {
+      throw new Error(productUpdateError.message);
+    }
+
+    const currentItem = await getCurrentListItem(supabase, listId, productId);
+    if (currentItem) {
+      const { error: updateError } = await supabase
+        .from("shopping_list_items")
+        .update({
+          quantity,
+          unit,
+        })
+        .eq("id", currentItem.id)
+        .eq("shopping_list_id", listId);
+
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+    } else {
+      const { error: insertError } = await supabase.from("shopping_list_items").insert({
+        shopping_list_id: listId,
+        product_id: productId,
+        quantity,
+        unit,
+      });
+
+      if (insertError) {
+        throw new Error(insertError.message);
+      }
+    }
+
+    revalidatePath(`/lists/${listId}`);
+    return { status: "success", message: "Produto atualizado." };
+  } catch {
+    return { status: "error", message: "Nao foi possivel salvar as alteracoes." };
   }
 }
 

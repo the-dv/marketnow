@@ -17,6 +17,7 @@ Este arquivo registra tarefas que dependem de painel externo (Supabase/Vercel) e
    - `supabase/migrations/20260226_user_pricing_model.sql`
    - `supabase/migrations/20260226_categories_alignment.sql`
    - `supabase/migrations/20260226_dynamic_shopping_flow.sql`
+   - `supabase/migrations/20260227_category_nullable_guard.sql`
 4. Executar `supabase/seed.sql`.
 
 ### Validacao rapida (SQL)
@@ -92,4 +93,25 @@ where schemaname = 'public'
    - em `/lists/:id`, marcar um produto como comprado
    - informar preco no modal e confirmar
    - recarregar a pagina e validar checkbox persistido
+
+## STEP-08 (obrigatorio apos merge local)
+
+Para garantir categoria opcional sem regressao e recalculo de total:
+
+1. Executar no Supabase SQL Editor:
+   - `supabase/migrations/20260227_category_nullable_guard.sql`
+2. Validar estrutura:
+
+```sql
+select is_nullable
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'products'
+  and column_name = 'category_id';
+```
+
+3. Testar no app:
+   - criar produto sem categoria em `/lists/:id`
+   - editar categoria para `Outros` e voltar para `Sem categoria`
+   - marcar comprado, informar preco e depois excluir produto comprado para validar total atualizado
 

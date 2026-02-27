@@ -261,7 +261,7 @@ export default async function ListDetailsPage({
                 {orderedCategoryTotals.map((entry) => (
                   <p className="category-total-line text-small" key={entry.categoryName}>
                     <span>{entry.categoryName}</span>
-                    <strong>{formatCurrency(entry.total)}</strong>
+                    <span className="category-total-value">{formatCurrency(entry.total)}</span>
                   </p>
                 ))}
               </div>

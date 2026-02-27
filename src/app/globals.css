@@ -136,6 +136,10 @@ body {
   border-radius: 10px;
   background: var(--primary);
   color: #fff;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0.75rem 1rem;
   font-size: 0.95rem;
   font-weight: 600;
@@ -166,7 +170,11 @@ body {
 }
 
 .button-secondary:hover {
-  background: #000;
+  background: #1f1f1f;
+}
+
+.button-secondary:active {
+  background: #0a0a0a;
 }
 
 .button-danger {
@@ -346,8 +354,8 @@ body {
 }
 
 .checkbox-hitarea {
-  width: 1.9rem;
-  height: 1.9rem;
+  width: 2rem;
+  height: 2rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -369,6 +377,7 @@ body {
   width: 1rem;
   height: 1rem;
   cursor: pointer;
+  accent-color: var(--primary);
   transition: opacity 140ms ease;
 }
 
@@ -539,6 +548,10 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+}
+
+.category-total-value {
+  font-weight: 500;
 }
 
 .loading-shell {

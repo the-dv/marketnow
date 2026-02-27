@@ -22,6 +22,7 @@ Este arquivo registra tarefas que dependem de painel externo (Supabase/Vercel) e
    - `supabase/migrations/20260227_category_fallback_outros.sql`
    - `supabase/migrations/202602271330_create_default_category_outros.sql`
    - `supabase/migrations/202602271730_bulk_mark_products_purchased.sql`
+   - `supabase/migrations/202602271900_fix_bulk_on_conflict_uniques.sql`
 4. Executar `supabase/seed.sql`.
 
 ### Validacao rapida (SQL)
@@ -216,4 +217,22 @@ where slug = 'outros';
 5. Teste de insert sem categoria (na app):
    - Escolher "Sem categoria" no dropdown.
    - Confirmar no banco que `products.category_id` referencia `categories.slug = 'outros'`.
+
+## STEP-18 (obrigatorio para corrigir erro 42P10 no bulk)
+
+1. Abrir Supabase Dashboard -> SQL Editor.
+2. Executar:
+   - `supabase/migrations/202602271900_fix_bulk_on_conflict_uniques.sql`
+3. Validar indices:
+
+```sql
+select schemaname, tablename, indexname, indexdef
+from pg_indexes
+where schemaname = 'public'
+  and tablename in ('user_product_prices', 'shopping_list_items')
+order by tablename, indexname;
+```
+
+4. Confirmar que existe indice unico para:
+   - `shopping_list_items (shopping_list_id, product_id)`
 

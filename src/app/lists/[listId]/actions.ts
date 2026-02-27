@@ -209,7 +209,12 @@ async function resolveCategoryId(
   rawCategoryId: string,
 ) {
   const normalized = rawCategoryId.trim();
-  if (!normalized || normalized.toLowerCase() === "null" || normalized.toLowerCase() === "undefined") {
+  if (
+    !normalized ||
+    normalized === "__none__" ||
+    normalized.toLowerCase() === "null" ||
+    normalized.toLowerCase() === "undefined"
+  ) {
     return null;
   }
 

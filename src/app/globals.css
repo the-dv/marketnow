@@ -260,7 +260,7 @@ body {
   display: grid;
   grid-template-columns: 48px minmax(260px, 1fr) 170px 88px 90px 64px;
   gap: 0.65rem;
-  align-items: start;
+  align-items: center;
 }
 
 .products-grid-head {
@@ -286,6 +286,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  align-self: center;
 }
 
 .product-name-cell {
@@ -302,11 +303,12 @@ body {
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  align-self: center;
 }
 
 .icon-button {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.5rem;
+  height: 2.5rem;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: #fff;

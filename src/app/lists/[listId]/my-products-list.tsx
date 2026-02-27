@@ -190,7 +190,7 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
       ) : (
         <div className="products-grid-wrapper">
           <div className="products-grid-head">
-            <span>OK</span>
+            <span>Comprado</span>
             <span>Nome</span>
             <span>Categoria</span>
             <span>Qtd</span>
@@ -212,7 +212,7 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
 
                 <div className="checkbox-cell" data-label="Comprado">
                   <input
-                    aria-label={`Marcar ${product.name} como comprado`}
+                    aria-label="Comprado"
                     type="checkbox"
                     checked={product.purchased}
                     disabled={isBusy}
@@ -240,14 +240,14 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                   <select
                     className="input"
                     name="categoryId"
-                    defaultValue={product.categoryId ?? ""}
+                    defaultValue={product.categoryId ?? "__none__"}
                     onBlur={(event) => event.currentTarget.form?.requestSubmit()}
                     onChange={(event) => event.currentTarget.form?.requestSubmit()}
                     onKeyDown={handleFieldEnter}
                     disabled={isBusy}
                     title={product.categoryName}
                   >
-                    <option value="">Sem categoria</option>
+                    <option value="__none__">Sem categoria</option>
                     {categories.map((category) => (
                       <option key={category.id} value={category.id}>
                         {category.name}

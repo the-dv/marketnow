@@ -54,8 +54,8 @@ export function CreateProductForm({
           event.currentTarget.form?.requestSubmit();
         }}
       />
-      <select className="input" name="categoryId" defaultValue="">
-        <option value="">Sem categoria</option>
+      <select className="input" name="categoryId" defaultValue="__none__">
+        <option value="__none__">Sem categoria</option>
         {categories.map((category) => (
           <option key={category.id} value={category.id}>
             {category.name}

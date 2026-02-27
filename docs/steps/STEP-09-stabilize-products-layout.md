@@ -33,6 +33,10 @@ Estabilizar a tela `/lists/:id` corrigindo falha de cadastro sem categoria, ampl
 - [x] `npm run lint` executado com sucesso.
 - [x] `npm run build` executado com sucesso.
 - [x] Commit realizado com referencia `STEP-09`.
+- [x] Cabecalho da primeira coluna atualizado para "Comprado".
+- [x] Checkbox centralizado verticalmente em todas as linhas.
+- [x] Botao de lixeira centralizado verticalmente com dimensao consistente.
+- [x] Valor "Sem categoria" tratado por sentinela e persistido como `NULL`.
 
 ## Criterios de aceite
 
@@ -112,3 +116,5 @@ Estabilizar a tela `/lists/:id` corrigindo falha de cadastro sem categoria, ampl
 - Container da pagina de lista foi ampliado com classe `container-wide`.
 - Grid de produtos foi reconstruida em 6 colunas estaveis com quebra limpa no mobile.
 - Campo de quantidade ficou compacto e a coluna de categoria ganhou largura fixa legivel.
+- Cabecalho da coluna de checkbox alterado de "OK" para "Comprado".
+- Fluxo "Sem categoria" reforcado com sentinela `__none__` mapeada para `category_id = NULL`.

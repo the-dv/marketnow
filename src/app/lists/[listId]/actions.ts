@@ -15,6 +15,9 @@ export type PurchaseActionState = {
   message: string;
 };
 
+const OUTROS_SLUG = "outros";
+const OUTROS_NAME = "Outros";
+
 type SupabaseErrorLike = {
   message?: string;
   code?: string;
@@ -207,6 +210,7 @@ async function getOwnedProduct(
 async function resolveCategoryId(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   rawCategoryId: string,
+  cache: { outrosCategoryId?: string },
 ) {
   const normalized = rawCategoryId.trim();
   if (
@@ -215,7 +219,7 @@ async function resolveCategoryId(
     normalized.toLowerCase() === "null" ||
     normalized.toLowerCase() === "undefined"
   ) {
-    return null;
+    return getOrCreateOutrosCategoryId(supabase, cache);
   }
 
   const { data: category, error } = await supabase
@@ -229,6 +233,49 @@ async function resolveCategoryId(
   }
 
   return category.id as string;
+}
+
+async function getOrCreateOutrosCategoryId(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  cache: { outrosCategoryId?: string },
+) {
+  if (cache.outrosCategoryId) {
+    return cache.outrosCategoryId;
+  }
+
+  const { data: existingCategory, error: existingCategoryError } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("slug", OUTROS_SLUG)
+    .maybeSingle();
+
+  if (existingCategoryError) {
+    throw existingCategoryError;
+  }
+
+  if (existingCategory?.id) {
+    cache.outrosCategoryId = existingCategory.id;
+    return existingCategory.id;
+  }
+
+  const { data: createdCategory, error: createCategoryError } = await supabase
+    .from("categories")
+    .upsert(
+      {
+        slug: OUTROS_SLUG,
+        name: OUTROS_NAME,
+      },
+      { onConflict: "slug" },
+    )
+    .select("id")
+    .single();
+
+  if (createCategoryError || !createdCategory) {
+    throw createCategoryError ?? new Error("OUTROS_CATEGORY_NOT_CREATED");
+  }
+
+  cache.outrosCategoryId = createdCategory.id;
+  return createdCategory.id;
 }
 
 async function getCurrentListItem(
@@ -274,7 +321,8 @@ export async function createUserProductAction(
   try {
     const { supabase, userId } = await requireUserContext();
     await assertListOwnership(supabase, listId, userId);
-    const categoryId = await resolveCategoryId(supabase, rawCategoryId);
+    const categoryCache: { outrosCategoryId?: string } = {};
+    const categoryId = await resolveCategoryId(supabase, rawCategoryId, categoryCache);
 
     const slug = createSlug(name, userId);
     const { data: createdProduct, error } = await supabase
@@ -357,7 +405,8 @@ export async function updateUserProductDetailsAction(
     const { supabase, userId } = await requireUserContext();
     await assertListOwnership(supabase, listId, userId);
     await getOwnedProduct(supabase, productId, userId);
-    const categoryId = await resolveCategoryId(supabase, rawCategoryId);
+    const categoryCache: { outrosCategoryId?: string } = {};
+    const categoryId = await resolveCategoryId(supabase, rawCategoryId, categoryCache);
 
     const { error: productUpdateError } = await supabase
       .from("products")

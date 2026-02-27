@@ -31,7 +31,7 @@ create table if not exists public.products (
   slug text not null unique,
   name text not null,
   owner_user_id uuid null references auth.users(id) on delete cascade,
-  category_id uuid null references public.categories(id),
+  category_id uuid not null references public.categories(id),
   unit text not null,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),

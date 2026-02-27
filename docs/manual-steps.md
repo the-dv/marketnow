@@ -19,6 +19,7 @@ Este arquivo registra tarefas que dependem de painel externo (Supabase/Vercel) e
    - `supabase/migrations/20260226_dynamic_shopping_flow.sql`
    - `supabase/migrations/20260227_category_nullable_guard.sql`
    - `supabase/migrations/20260227_fix_optional_category_id.sql`
+   - `supabase/migrations/20260227_category_fallback_outros.sql`
 4. Executar `supabase/seed.sql`.
 
 ### Validacao rapida (SQL)
@@ -161,4 +162,35 @@ Resultado esperado: `YES`.
 insert into public.products (slug, name, owner_user_id, category_id, unit, is_active)
 values ('teste-sem-categoria-manual', 'Teste sem categoria', '<SEU_USER_ID>', null, 'un', true);
 ```
+
+## STEP-11 (obrigatorio apos merge local)
+
+Regra nova: categoria nunca e nula; "Sem categoria" vira "Outros".
+
+1. Abrir Supabase Dashboard -> SQL Editor.
+2. Executar:
+   - `supabase/migrations/20260227_category_fallback_outros.sql`
+3. Validar schema:
+
+```sql
+select is_nullable
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'products'
+  and column_name = 'category_id';
+```
+
+Resultado esperado: `NO`.
+
+4. Validar categoria `outros`:
+
+```sql
+select id, slug, name
+from public.categories
+where slug = 'outros';
+```
+
+5. Teste de insert sem categoria (na app):
+   - Escolher "Sem categoria" no dropdown.
+   - Confirmar no banco que `products.category_id` referencia `categories.slug = 'outros'`.
 

@@ -21,6 +21,7 @@ type MyProductEntry = {
   unit: "un" | "kg" | "L";
   purchased: boolean;
   paidPrice: number | null;
+  referencePrice: number | null;
 };
 
 type CategoryOption = {
@@ -67,6 +68,12 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
     setSaveReference(true);
   }
 
+  function openPriceModal(product: MyProductEntry, keepReference = true) {
+    setActiveProduct(product);
+    setPriceInput(product.paidPrice ? String(product.paidPrice.toFixed(2)).replace(".", ",") : "");
+    setSaveReference(keepReference);
+  }
+
   async function handleUncheck(productId: string) {
     setPendingProductId(productId);
 
@@ -83,9 +90,25 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
 
   function handleCheckboxChange(product: MyProductEntry, checked: boolean) {
     if (checked) {
-      setActiveProduct(product);
-      setPriceInput(product.paidPrice ? String(product.paidPrice.toFixed(2)).replace(".", ",") : "");
-      setSaveReference(true);
+      const referencePrice = product.referencePrice;
+      if (referencePrice !== null) {
+        startTransition(async () => {
+          setPendingProductId(product.id);
+          const formData = buildFormData(listId, product.id);
+          formData.append("paidPrice", referencePrice.toFixed(2));
+
+          const result = (await recordProductPurchaseAction(formData)) as PurchaseActionState;
+          pushToast({ kind: result.status, message: result.message });
+          setPendingProductId(null);
+
+          if (result.status === "success") {
+            router.refresh();
+          }
+        });
+        return;
+      }
+
+      openPriceModal(product);
       return;
     }
 
@@ -184,7 +207,7 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
             <span>Categoria</span>
             <span>Qtd</span>
             <span>Unid.</span>
-            <span>Acoes</span>
+            <span aria-hidden="true" />
           </div>
 
           {products.map((product) => {
@@ -210,19 +233,28 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                 </div>
 
                 <div className="product-name-cell" data-label="Nome">
-                  <input
-                    className="input"
-                    name="name"
-                    defaultValue={product.name}
-                    disabled={isBusy}
-                    maxLength={120}
-                    onBlur={(event) => event.currentTarget.form?.requestSubmit()}
-                    onKeyDown={handleFieldEnter}
-                    required
-                  />
-                  {product.purchased && product.paidPrice ? (
-                    <span className="text-success product-meta">Pago: {formatCurrency(product.paidPrice)}</span>
-                  ) : null}
+                  <div className="product-name-inline">
+                    <input
+                      className="input"
+                      name="name"
+                      defaultValue={product.name}
+                      disabled={isBusy}
+                      maxLength={120}
+                      onBlur={(event) => event.currentTarget.form?.requestSubmit()}
+                      onKeyDown={handleFieldEnter}
+                      required
+                    />
+                    {product.purchased && product.paidPrice ? (
+                      <button
+                        className="value-chip"
+                        onClick={() => openPriceModal(product, true)}
+                        title="Editar valor pago"
+                        type="button"
+                      >
+                        Valor: {formatCurrency(product.paidPrice)}
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
 
                 <div className="category-cell" data-label="Categoria">

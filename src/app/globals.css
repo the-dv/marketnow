@@ -51,6 +51,10 @@ body {
   margin-top: 0.5rem;
 }
 
+.stack-xs > * + * {
+  margin-top: 0.35rem;
+}
+
 .stack-md > * + * {
   margin-top: 0.75rem;
 }
@@ -82,6 +86,12 @@ body {
   line-height: 1.2;
 }
 
+.minor-heading {
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .text-muted {
   color: var(--muted);
 }
@@ -96,6 +106,10 @@ body {
 
 .text-warning {
   color: #9a6700;
+}
+
+.text-small {
+  font-size: 0.88rem;
 }
 
 .label {
@@ -305,8 +319,43 @@ body {
 
 .product-name-cell {
   min-width: 0;
-  display: grid;
-  gap: 0.3rem;
+}
+
+.product-name-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.product-name-inline .input {
+  min-width: 0;
+  flex: 1;
+}
+
+.value-chip {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.2;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgb(107 114 128 / 40%);
+  text-underline-offset: 2px;
+}
+
+.value-chip:hover {
+  color: var(--text);
+  text-decoration-color: rgb(17 17 17 / 40%);
+}
+
+.value-chip:focus-visible {
+  outline: 2px solid rgb(11 95 255 / 35%);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .category-cell .input {
@@ -397,6 +446,19 @@ body {
   padding: 0.2rem 0.65rem;
   font-size: 0.85rem;
   font-weight: 600;
+}
+
+.divider {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 0.35rem 0 0.1rem;
+}
+
+.category-total-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .loading-shell {
@@ -553,6 +615,11 @@ body {
 
   .actions-cell {
     justify-content: flex-start;
+  }
+
+  .product-name-inline {
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
 
   .toast-viewport {

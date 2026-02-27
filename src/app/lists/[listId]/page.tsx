@@ -42,7 +42,21 @@ type ProductPurchaseRow = {
   updated_at: string;
 };
 
+type UserPriceRow = {
+  product_id: string;
+  paid_price: number;
+  purchased_at: string;
+};
+
 const CATEGORY_ORDER = ["alimentos", "bebidas", "higiene", "limpeza", "utilidades", "outros"];
+const CATEGORY_TOTAL_ORDER = [
+  "Alimentos",
+  "Bebidas",
+  "Higiene",
+  "Limpeza",
+  "Utilidades",
+  "Sem categoria",
+];
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -134,6 +148,7 @@ export default async function ListDetailsPage({
   const typedUserProducts = (userProducts ?? []) as UserProductRow[];
 
   let typedPurchaseRows: ProductPurchaseRow[] = [];
+  let typedUserPriceRows: UserPriceRow[] = [];
   if (typedUserProducts.length > 0) {
     const { data: purchaseRows } = await supabase
       .from("shopping_list_items")
@@ -146,12 +161,31 @@ export default async function ListDetailsPage({
       .order("updated_at", { ascending: false });
 
     typedPurchaseRows = (purchaseRows ?? []) as ProductPurchaseRow[];
+
+    const { data: userPriceRows } = await supabase
+      .from("user_product_prices")
+      .select("product_id,paid_price,purchased_at")
+      .eq("user_id", user.id)
+      .in(
+        "product_id",
+        typedUserProducts.map((product) => product.id),
+      )
+      .order("purchased_at", { ascending: false });
+
+    typedUserPriceRows = (userPriceRows ?? []) as UserPriceRow[];
   }
 
   const purchaseByProductId = new Map<string, ProductPurchaseRow>();
   for (const row of typedPurchaseRows) {
     if (!purchaseByProductId.has(row.product_id)) {
       purchaseByProductId.set(row.product_id, row);
+    }
+  }
+
+  const referencePriceByProductId = new Map<string, number>();
+  for (const row of typedUserPriceRows) {
+    if (!referencePriceByProductId.has(row.product_id)) {
+      referencePriceByProductId.set(row.product_id, Number(row.paid_price));
     }
   }
 
@@ -167,8 +201,28 @@ export default async function ListDetailsPage({
       unit: purchase?.unit ?? product.unit,
       purchased: Boolean(purchase?.purchased_at),
       paidPrice: purchase?.paid_price ?? null,
+      referencePrice: referencePriceByProductId.get(product.id) ?? null,
     };
   });
+
+  const categoryTotals = new Map<string, number>();
+  for (const product of myProducts) {
+    if (!product.purchased || product.paidPrice === null) {
+      continue;
+    }
+
+    const normalizedCategory =
+      !product.categoryName || product.categoryName === "Outros" ? "Sem categoria" : product.categoryName;
+    const currentTotal = categoryTotals.get(normalizedCategory) ?? 0;
+    categoryTotals.set(normalizedCategory, Number((currentTotal + product.paidPrice).toFixed(2)));
+  }
+
+  const orderedCategoryTotals = CATEGORY_TOTAL_ORDER.filter((categoryName) =>
+    categoryTotals.has(categoryName),
+  ).map((categoryName) => ({
+    categoryName,
+    total: categoryTotals.get(categoryName) ?? 0,
+  }));
 
   return (
     <main className="container container-wide stack-lg">
@@ -197,9 +251,29 @@ export default async function ListDetailsPage({
       />
 
       <section className="card stack-sm">
-        <div className="row-between">
+        <div className="stack-sm">
+          <div className="stack-sm">
+            <h3 className="minor-heading">Total por categoria</h3>
+            {orderedCategoryTotals.length === 0 ? (
+              <p className="text-muted text-small">Nenhuma compra registrada ainda.</p>
+            ) : (
+              <div className="stack-xs">
+                {orderedCategoryTotals.map((entry) => (
+                  <p className="category-total-line text-small" key={entry.categoryName}>
+                    <span>{entry.categoryName}</span>
+                    <strong>{formatCurrency(entry.total)}</strong>
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <hr className="divider" />
+
+          <div className="row-between">
           <h2 className="subheading">Total estimado</h2>
           <strong>{formatCurrency(estimate.estimatedTotal)}</strong>
+          </div>
         </div>
       </section>
     </main>

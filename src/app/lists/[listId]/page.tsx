@@ -20,6 +20,7 @@ type CategoryRow = {
 };
 
 type ProductCategory = {
+  slug: string;
   name: string;
 };
 
@@ -55,11 +56,16 @@ function getCategoryName(category: UserProductRow["category"]) {
     return "Sem categoria";
   }
 
-  if (Array.isArray(category)) {
-    return category[0]?.name ?? "Sem categoria";
+  const resolvedCategory = Array.isArray(category) ? category[0] : category;
+  if (!resolvedCategory) {
+    return "Sem categoria";
   }
 
-  return category.name;
+  if (resolvedCategory.slug === "outros") {
+    return "Sem categoria";
+  }
+
+  return resolvedCategory.name;
 }
 
 export default async function ListDetailsPage({
@@ -115,10 +121,12 @@ export default async function ListDetailsPage({
     const secondOrder = categoryOrderMap.get(second.slug) ?? Number.MAX_SAFE_INTEGER;
     return firstOrder - secondOrder;
   });
+  const outrosCategoryId = typedCategories.find((category) => category.slug === "outros")?.id ?? null;
+  const editableCategories = typedCategories.filter((category) => category.slug !== "outros");
 
   const { data: userProducts } = await supabase
     .from("products")
-    .select("id,name,unit,category_id,category:categories(name)")
+    .select("id,name,unit,category_id,category:categories(name,slug)")
     .eq("owner_user_id", user.id)
     .eq("is_active", true)
     .order("created_at", { ascending: false });
@@ -153,7 +161,7 @@ export default async function ListDetailsPage({
     return {
       id: product.id,
       name: product.name,
-      categoryId: product.category_id,
+      categoryId: product.category_id === outrosCategoryId ? null : product.category_id,
       categoryName: getCategoryName(product.category),
       quantity: purchase?.quantity ? Number(purchase.quantity) : 1,
       unit: purchase?.unit ?? product.unit,
@@ -178,22 +186,22 @@ export default async function ListDetailsPage({
       </section>
 
       <section className="card stack-sm">
+        <h2 className="subheading">Cadastrar produto</h2>
+        <CreateProductForm action={createUserProductAction} categories={editableCategories} listId={listId} />
+      </section>
+
+      <MyProductsList
+        categories={editableCategories.map((category) => ({ id: category.id, name: category.name }))}
+        listId={listId}
+        products={myProducts}
+      />
+
+      <section className="card stack-sm">
         <div className="row-between">
           <h2 className="subheading">Total estimado</h2>
           <strong>{formatCurrency(estimate.estimatedTotal)}</strong>
         </div>
       </section>
-
-      <section className="card stack-sm">
-        <h2 className="subheading">Cadastrar produto</h2>
-        <CreateProductForm action={createUserProductAction} categories={typedCategories} listId={listId} />
-      </section>
-
-      <MyProductsList
-        categories={typedCategories.map((category) => ({ id: category.id, name: category.name }))}
-        listId={listId}
-        products={myProducts}
-      />
     </main>
   );
 }

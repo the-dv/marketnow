@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const VALID_UNITS = new Set(["un", "kg", "L"]);
+const OUTROS_SLUG = "outros";
+const OUTROS_CATEGORY_MISSING_ERROR = "OUTROS_CATEGORY_MISSING";
 
 export type ProductFormState = {
   status: "idle" | "success" | "error";
@@ -14,9 +16,6 @@ export type PurchaseActionState = {
   status: "success" | "error";
   message: string;
 };
-
-const OUTROS_SLUG = "outros";
-const OUTROS_NAME = "Outros";
 
 type SupabaseErrorLike = {
   message?: string;
@@ -72,6 +71,18 @@ function withDevErrorDetails(baseMessage: string, error: unknown) {
     .join(" | ");
 
   return details ? `${baseMessage} (${details})` : baseMessage;
+}
+
+function isOutrosCategoryMissingError(error: unknown) {
+  return error instanceof Error && error.message === OUTROS_CATEGORY_MISSING_ERROR;
+}
+
+function resolveFallbackErrorMessage(defaultMessage: string, error: unknown) {
+  if (isOutrosCategoryMissingError(error)) {
+    return "Categoria base nao aplicada. Rode seed/migration do Supabase e tente novamente.";
+  }
+
+  return withDevErrorDetails(defaultMessage, error);
 }
 
 async function requireUserContext() {
@@ -210,7 +221,6 @@ async function getOwnedProduct(
 async function resolveCategoryId(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   rawCategoryId: string,
-  cache: { outrosCategoryId?: string },
 ) {
   const normalized = rawCategoryId.trim();
   if (
@@ -219,7 +229,7 @@ async function resolveCategoryId(
     normalized.toLowerCase() === "null" ||
     normalized.toLowerCase() === "undefined"
   ) {
-    return getOrCreateOutrosCategoryId(supabase, cache);
+    return getOutrosCategoryId(supabase);
   }
 
   const { data: category, error } = await supabase
@@ -235,14 +245,9 @@ async function resolveCategoryId(
   return category.id as string;
 }
 
-async function getOrCreateOutrosCategoryId(
+async function getOutrosCategoryId(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
-  cache: { outrosCategoryId?: string },
 ) {
-  if (cache.outrosCategoryId) {
-    return cache.outrosCategoryId;
-  }
-
   const { data: existingCategory, error: existingCategoryError } = await supabase
     .from("categories")
     .select("id")
@@ -254,28 +259,10 @@ async function getOrCreateOutrosCategoryId(
   }
 
   if (existingCategory?.id) {
-    cache.outrosCategoryId = existingCategory.id;
     return existingCategory.id;
   }
 
-  const { data: createdCategory, error: createCategoryError } = await supabase
-    .from("categories")
-    .upsert(
-      {
-        slug: OUTROS_SLUG,
-        name: OUTROS_NAME,
-      },
-      { onConflict: "slug" },
-    )
-    .select("id")
-    .single();
-
-  if (createCategoryError || !createdCategory) {
-    throw createCategoryError ?? new Error("OUTROS_CATEGORY_NOT_CREATED");
-  }
-
-  cache.outrosCategoryId = createdCategory.id;
-  return createdCategory.id;
+  throw new Error(OUTROS_CATEGORY_MISSING_ERROR);
 }
 
 async function getCurrentListItem(
@@ -321,8 +308,7 @@ export async function createUserProductAction(
   try {
     const { supabase, userId } = await requireUserContext();
     await assertListOwnership(supabase, listId, userId);
-    const categoryCache: { outrosCategoryId?: string } = {};
-    const categoryId = await resolveCategoryId(supabase, rawCategoryId, categoryCache);
+    const categoryId = await resolveCategoryId(supabase, rawCategoryId);
 
     const slug = createSlug(name, userId);
     const { data: createdProduct, error } = await supabase
@@ -370,7 +356,7 @@ export async function createUserProductAction(
     logSupabaseError("createUserProductAction.catch", error);
     return {
       status: "error",
-      message: withDevErrorDetails("Falha de autenticacao ou permissao.", error),
+      message: resolveFallbackErrorMessage("Falha de autenticacao ou permissao.", error),
     };
   }
 }
@@ -405,8 +391,7 @@ export async function updateUserProductDetailsAction(
     const { supabase, userId } = await requireUserContext();
     await assertListOwnership(supabase, listId, userId);
     await getOwnedProduct(supabase, productId, userId);
-    const categoryCache: { outrosCategoryId?: string } = {};
-    const categoryId = await resolveCategoryId(supabase, rawCategoryId, categoryCache);
+    const categoryId = await resolveCategoryId(supabase, rawCategoryId);
 
     const { error: productUpdateError } = await supabase
       .from("products")
@@ -451,8 +436,11 @@ export async function updateUserProductDetailsAction(
 
     revalidatePath(`/lists/${listId}`);
     return { status: "success", message: "Produto atualizado." };
-  } catch {
-    return { status: "error", message: "Nao foi possivel salvar as alteracoes." };
+  } catch (error) {
+    return {
+      status: "error",
+      message: resolveFallbackErrorMessage("Nao foi possivel salvar as alteracoes.", error),
+    };
   }
 }
 

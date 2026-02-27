@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { FormSubmitButton } from "@/components/form-submit-button";
+import { useToast } from "@/components/toast-provider";
 import type { ProductFormState } from "./actions";
 
 type CategoryRow = {
@@ -24,16 +25,26 @@ export function CreateProductForm({
   const initialState: ProductFormState = { status: "idle", message: "" };
   const [state, formAction] = useActionState(action, initialState);
   const router = useRouter();
+  const { pushToast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (state.status === "idle") {
+      return;
+    }
+
+    pushToast({
+      kind: state.status === "success" ? "success" : "error",
+      message: state.message,
+    });
+
     if (state.status === "success") {
       formRef.current?.reset();
       nameInputRef.current?.focus();
       router.refresh();
     }
-  }, [router, state.status]);
+  }, [pushToast, router, state]);
 
   return (
     <form action={formAction} className="row-grid-user-product" ref={formRef}>
@@ -68,9 +79,6 @@ export function CreateProductForm({
         <option value="L">L</option>
       </select>
       <FormSubmitButton idleText="Salvar produto" pendingText="Salvando..." />
-
-      {state.status === "success" ? <p className="text-success form-feedback">{state.message}</p> : null}
-      {state.status === "error" ? <p className="text-error form-feedback">{state.message}</p> : null}
     </form>
   );
 }

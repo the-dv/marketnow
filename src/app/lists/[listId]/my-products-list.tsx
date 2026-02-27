@@ -3,6 +3,7 @@
 import { FormEvent, KeyboardEvent, useMemo, useState, useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/toast-provider";
 import {
   clearProductPurchaseAction,
   recordProductPurchaseAction,
@@ -33,11 +34,6 @@ type MyProductsListProps = {
   categories: CategoryOption[];
 };
 
-type Feedback = {
-  status: "success" | "error";
-  message: string;
-};
-
 const UNIT_OPTIONS: Array<"un" | "kg" | "L"> = ["un", "kg", "L"];
 
 function formatCurrency(value: number) {
@@ -56,10 +52,10 @@ function buildFormData(listId: string, productId: string) {
 
 export function MyProductsList({ listId, products, categories }: MyProductsListProps) {
   const router = useRouter();
+  const { pushToast } = useToast();
   const [activeProduct, setActiveProduct] = useState<MyProductEntry | null>(null);
   const [priceInput, setPriceInput] = useState("");
   const [saveReference, setSaveReference] = useState(true);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [pendingProductId, setPendingProductId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -77,7 +73,7 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
     const formData = buildFormData(listId, productId);
     const result = (await clearProductPurchaseAction(formData)) as PurchaseActionState;
 
-    setFeedback({ status: result.status, message: result.message });
+    pushToast({ kind: result.status, message: result.message });
     setPendingProductId(null);
 
     if (result.status === "success") {
@@ -87,7 +83,6 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
 
   function handleCheckboxChange(product: MyProductEntry, checked: boolean) {
     if (checked) {
-      setFeedback(null);
       setActiveProduct(product);
       setPriceInput(product.paidPrice ? String(product.paidPrice.toFixed(2)).replace(".", ",") : "");
       setSaveReference(true);
@@ -114,7 +109,7 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
       }
 
       const result = (await recordProductPurchaseAction(formData)) as PurchaseActionState;
-      setFeedback({ status: result.status, message: result.message });
+      pushToast({ kind: result.status, message: result.message });
 
       if (result.status === "success") {
         closeModal();
@@ -130,7 +125,7 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
       setPendingProductId(productId);
       const formData = new FormData(event.currentTarget);
       const result = (await updateUserProductDetailsAction(formData)) as PurchaseActionState;
-      setFeedback({ status: result.status, message: result.message });
+      pushToast({ kind: result.status, message: result.message });
       setPendingProductId(null);
 
       if (result.status === "success") {
@@ -160,7 +155,7 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
       const formData = buildFormData(listId, product.id);
       const result = (await softDeleteUserProductAction(formData)) as PurchaseActionState;
 
-      setFeedback({ status: result.status, message: result.message });
+      pushToast({ kind: result.status, message: result.message });
       setPendingProductId(null);
 
       if (result.status === "success") {
@@ -177,12 +172,6 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
       <div className="row-between">
         <h2 className="subheading">Meus produtos</h2>
         <span className="text-muted">{productsCountLabel}</span>
-      </div>
-
-      <div className="feedback-slot" aria-live="polite">
-        {feedback ? (
-          <p className={feedback.status === "success" ? "text-success" : "text-error"}>{feedback.message}</p>
-        ) : null}
       </div>
 
       {products.length === 0 ? (

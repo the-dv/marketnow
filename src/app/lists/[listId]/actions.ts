@@ -1,12 +1,20 @@
 ﻿"use server";
 
 import { revalidatePath } from "next/cache";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { parseTrimmedString, parseUuid } from "@/lib/validation";
 
 const VALID_UNITS = new Set(["un", "kg", "L"]);
 const OUTROS_SLUG = "outros";
 const OUTROS_CATEGORY_MISSING_ERROR = "OUTROS_CATEGORY_MISSING";
 const NONE_CATEGORY_SENTINEL = "__NONE__";
+const MAX_PRICE_VALUE = 999_999.99;
+const MAX_QUANTITY_VALUE = 9_999.999;
+const LIST_ACTION_RATE_LIMIT = {
+  maxHits: 60,
+  windowMs: 60_000,
+} as const;
 
 export type ProductFormState = {
   status: "idle" | "success" | "error";
@@ -58,25 +66,8 @@ function logSupabaseError(context: string, error: unknown) {
 }
 
 function withDevErrorDetails(baseMessage: string, error: unknown) {
-  if (process.env.NODE_ENV === "production") {
-    return baseMessage;
-  }
-
-  const parsedError = asSupabaseError(error);
-  if (!parsedError) {
-    return baseMessage;
-  }
-
-  const details = [
-    parsedError.message,
-    parsedError.code ? `code=${parsedError.code}` : null,
-    parsedError.details ? `details=${parsedError.details}` : null,
-    parsedError.hint ? `hint=${parsedError.hint}` : null,
-  ]
-    .filter(Boolean)
-    .join(" | ");
-
-  return details ? `${baseMessage} (${details})` : baseMessage;
+  logSupabaseError("withDevErrorDetails", error);
+  return baseMessage;
 }
 
 function isOutrosCategoryMissingError(error: unknown) {
@@ -109,10 +100,17 @@ async function assertListOwnership(
   listId: string,
   userId: string,
 ) {
+  let normalizedListId = "";
+  try {
+    normalizedListId = parseUuid(listId);
+  } catch {
+    throw new Error("VALIDATION_ERROR");
+  }
+
   const { data, error } = await supabase
     .from("shopping_lists")
     .select("id")
-    .eq("id", listId)
+    .eq("id", normalizedListId)
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -121,24 +119,29 @@ async function assertListOwnership(
   }
 }
 
+function enforceWriteActionRateLimit(userId: string, action: string) {
+  return enforceRateLimit({
+    key: `list-action:${action}:${userId}`,
+    ...LIST_ACTION_RATE_LIMIT,
+  });
+}
+
 function parseUnit(raw: FormDataEntryValue | null) {
   if (typeof raw !== "string" || raw.trim() === "") {
     return "un" as const;
   }
 
-  if (!VALID_UNITS.has(raw)) {
+  const normalized = raw.trim();
+
+  if (!VALID_UNITS.has(normalized)) {
     throw new Error("VALIDATION_ERROR");
   }
 
-  return raw as "un" | "kg" | "L";
+  return normalized as "un" | "kg" | "L";
 }
 
 function parseName(raw: FormDataEntryValue | null) {
-  const value = typeof raw === "string" ? raw.trim() : "";
-  if (!value || value.length > 120) {
-    throw new Error("VALIDATION_ERROR");
-  }
-  return value;
+  return parseTrimmedString(raw, { minLength: 1, maxLength: 120 });
 }
 
 function parseQuantityInput(raw: FormDataEntryValue | null) {
@@ -149,7 +152,7 @@ function parseQuantityInput(raw: FormDataEntryValue | null) {
   const normalized = raw.trim().replace(/,/g, ".");
   const parsed = Number(normalized);
 
-  if (!Number.isFinite(parsed) || parsed <= 0) {
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > MAX_QUANTITY_VALUE) {
     throw new Error("VALIDATION_ERROR");
   }
 
@@ -198,7 +201,7 @@ function parsePaidPriceInput(raw: FormDataEntryValue | null) {
   normalized = normalized.replace(/[^0-9.\-]/g, "");
 
   const parsed = Number(normalized);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > MAX_PRICE_VALUE) {
     throw new Error("VALIDATION_ERROR");
   }
 
@@ -228,8 +231,10 @@ function parseBulkPurchaseItems(raw: FormDataEntryValue | null) {
     }
 
     const candidate = entry as { productId?: unknown; paidPrice?: unknown };
-    const productId = typeof candidate.productId === "string" ? candidate.productId.trim() : "";
-    if (!productId) {
+    let productId = "";
+    try {
+      productId = parseUuid(candidate.productId);
+    } catch {
       throw new Error("VALIDATION_ERROR");
     }
 
@@ -239,7 +244,7 @@ function parseBulkPurchaseItems(raw: FormDataEntryValue | null) {
     }
 
     const paidPrice = Number(candidate.paidPrice);
-    if (!Number.isFinite(paidPrice) || paidPrice <= 0) {
+    if (!Number.isFinite(paidPrice) || paidPrice <= 0 || paidPrice > MAX_PRICE_VALUE) {
       throw new Error("VALIDATION_ERROR");
     }
 
@@ -254,10 +259,17 @@ async function getOwnedProduct(
   productId: string,
   userId: string,
 ) {
+  let normalizedProductId = "";
+  try {
+    normalizedProductId = parseUuid(productId);
+  } catch {
+    throw new Error("VALIDATION_ERROR");
+  }
+
   const { data: product, error } = await supabase
     .from("products")
     .select("id,unit,owner_user_id")
-    .eq("id", productId)
+    .eq("id", normalizedProductId)
     .eq("is_active", true)
     .maybeSingle();
 
@@ -283,10 +295,17 @@ async function resolveCategoryId(
     return getOutrosCategoryId(supabase);
   }
 
+  let categoryId = "";
+  try {
+    categoryId = parseUuid(normalized);
+  } catch {
+    throw new Error("VALIDATION_ERROR");
+  }
+
   const { data: category, error } = await supabase
     .from("categories")
     .select("id")
-    .eq("id", normalized)
+    .eq("id", categoryId)
     .maybeSingle();
 
   if (error || !category) {
@@ -321,11 +340,20 @@ async function getCurrentListItem(
   listId: string,
   productId: string,
 ) {
+  let normalizedListId = "";
+  let normalizedProductId = "";
+  try {
+    normalizedListId = parseUuid(listId);
+    normalizedProductId = parseUuid(productId);
+  } catch {
+    throw new Error("VALIDATION_ERROR");
+  }
+
   const { data, error } = await supabase
     .from("shopping_list_items")
     .select("id,quantity,unit")
-    .eq("shopping_list_id", listId)
-    .eq("product_id", productId)
+    .eq("shopping_list_id", normalizedListId)
+    .eq("product_id", normalizedProductId)
     .order("updated_at", { ascending: false })
     .limit(1);
 
@@ -340,12 +368,14 @@ export async function createUserProductAction(
   _prevState: ProductFormState,
   formData: FormData,
 ): Promise<ProductFormState> {
-  const listId = String(formData.get("listId") ?? "");
+  let listId = "";
   let name = "";
   let unit: "un" | "kg" | "L" = "un";
   const rawCategoryId = String(formData.get("categoryId") ?? "").trim();
 
-  if (!listId) {
+  try {
+    listId = parseUuid(formData.get("listId"));
+  } catch {
     return { status: "error", message: "Lista invalida." };
   }
 
@@ -358,6 +388,11 @@ export async function createUserProductAction(
 
   try {
     const { supabase, userId } = await requireUserContext();
+    const rateLimitResult = enforceWriteActionRateLimit(userId, "create-product");
+    if (!rateLimitResult.allowed) {
+      return { status: "error", message: "Muitas tentativas. Aguarde alguns segundos." };
+    }
+
     await assertListOwnership(supabase, listId, userId);
     const categoryId = await resolveCategoryId(supabase, rawCategoryId);
 
@@ -415,14 +450,17 @@ export async function createUserProductAction(
 export async function updateUserProductDetailsAction(
   formData: FormData,
 ): Promise<PurchaseActionState> {
-  const listId = String(formData.get("listId") ?? "");
-  const productId = String(formData.get("productId") ?? "");
+  let listId = "";
+  let productId = "";
   const rawName = formData.get("name");
   const rawCategoryId = String(formData.get("categoryId") ?? "");
   const rawQuantity = formData.get("quantity");
   const rawUnit = formData.get("unit");
 
-  if (!listId || !productId) {
+  try {
+    listId = parseUuid(formData.get("listId"));
+    productId = parseUuid(formData.get("productId"));
+  } catch {
     return { status: "error", message: "Dados invalidos." };
   }
 
@@ -440,6 +478,11 @@ export async function updateUserProductDetailsAction(
 
   try {
     const { supabase, userId } = await requireUserContext();
+    const rateLimitResult = enforceWriteActionRateLimit(userId, "update-product-details");
+    if (!rateLimitResult.allowed) {
+      return { status: "error", message: "Muitas tentativas. Aguarde alguns segundos." };
+    }
+
     await assertListOwnership(supabase, listId, userId);
     await getOwnedProduct(supabase, productId, userId);
     const categoryId = await resolveCategoryId(supabase, rawCategoryId);
@@ -498,10 +541,13 @@ export async function updateUserProductDetailsAction(
 export async function updateProductListStateAction(
   formData: FormData,
 ): Promise<PurchaseActionState> {
-  const listId = String(formData.get("listId") ?? "");
-  const productId = String(formData.get("productId") ?? "");
+  let listId = "";
+  let productId = "";
 
-  if (!listId || !productId) {
+  try {
+    listId = parseUuid(formData.get("listId"));
+    productId = parseUuid(formData.get("productId"));
+  } catch {
     return { status: "error", message: "Dados invalidos." };
   }
 
@@ -517,6 +563,11 @@ export async function updateProductListStateAction(
 
   try {
     const { supabase, userId } = await requireUserContext();
+    const rateLimitResult = enforceWriteActionRateLimit(userId, "update-list-state");
+    if (!rateLimitResult.allowed) {
+      return { status: "error", message: "Muitas tentativas. Aguarde alguns segundos." };
+    }
+
     await assertListOwnership(supabase, listId, userId);
     await getOwnedProduct(supabase, productId, userId);
 
@@ -558,11 +609,14 @@ export async function updateProductListStateAction(
 export async function recordProductPurchaseAction(
   formData: FormData,
 ): Promise<PurchaseActionState> {
-  const listId = String(formData.get("listId") ?? "");
-  const productId = String(formData.get("productId") ?? "");
+  let listId = "";
+  let productId = "";
   const saveReference = formData.get("saveReference") === "on";
 
-  if (!listId || !productId) {
+  try {
+    listId = parseUuid(formData.get("listId"));
+    productId = parseUuid(formData.get("productId"));
+  } catch {
     return { status: "error", message: "Dados da compra invalidos." };
   }
 
@@ -575,6 +629,11 @@ export async function recordProductPurchaseAction(
 
   try {
     const { supabase, userId } = await requireUserContext();
+    const rateLimitResult = enforceWriteActionRateLimit(userId, "record-purchase");
+    if (!rateLimitResult.allowed) {
+      return { status: "error", message: "Muitas tentativas. Aguarde alguns segundos." };
+    }
+
     await assertListOwnership(supabase, listId, userId);
     const product = await getOwnedProduct(supabase, productId, userId);
 
@@ -637,15 +696,23 @@ export async function recordProductPurchaseAction(
 }
 
 export async function clearProductPurchaseAction(formData: FormData): Promise<PurchaseActionState> {
-  const listId = String(formData.get("listId") ?? "");
-  const productId = String(formData.get("productId") ?? "");
+  let listId = "";
+  let productId = "";
 
-  if (!listId || !productId) {
+  try {
+    listId = parseUuid(formData.get("listId"));
+    productId = parseUuid(formData.get("productId"));
+  } catch {
     return { status: "error", message: "Dados invalidos." };
   }
 
   try {
     const { supabase, userId } = await requireUserContext();
+    const rateLimitResult = enforceWriteActionRateLimit(userId, "clear-purchase");
+    if (!rateLimitResult.allowed) {
+      return { status: "error", message: "Muitas tentativas. Aguarde alguns segundos." };
+    }
+
     await assertListOwnership(supabase, listId, userId);
     await getOwnedProduct(supabase, productId, userId);
 
@@ -677,10 +744,12 @@ export async function clearProductPurchaseAction(formData: FormData): Promise<Pu
 export async function bulkMarkProductsPurchasedAction(
   formData: FormData,
 ): Promise<PurchaseActionState> {
-  const listId = String(formData.get("listId") ?? "").trim();
+  let listId = "";
   const saveReference = formData.get("saveReference") === "on";
 
-  if (!listId) {
+  try {
+    listId = parseUuid(formData.get("listId"));
+  } catch {
     return { status: "error", message: "Lista invalida." };
   }
 
@@ -693,6 +762,11 @@ export async function bulkMarkProductsPurchasedAction(
 
   try {
     const { supabase, userId } = await requireUserContext();
+    const rateLimitResult = enforceWriteActionRateLimit(userId, "bulk-purchase");
+    if (!rateLimitResult.allowed) {
+      return { status: "error", message: "Muitas tentativas. Aguarde alguns segundos." };
+    }
+
     await assertListOwnership(supabase, listId, userId);
 
     const rpcPayload = items.map((item) => ({
@@ -726,13 +800,20 @@ export async function bulkMarkProductsPurchasedAction(
 }
 
 export async function unpurchaseAllListItemsAction(listId: string): Promise<PurchaseActionState> {
-  const normalizedListId = listId.trim();
-  if (!normalizedListId) {
+  let normalizedListId = "";
+  try {
+    normalizedListId = parseUuid(listId);
+  } catch {
     return { status: "error", message: "Lista invalida." };
   }
 
   try {
     const { supabase, userId } = await requireUserContext();
+    const rateLimitResult = enforceWriteActionRateLimit(userId, "bulk-unpurchase");
+    if (!rateLimitResult.allowed) {
+      return { status: "error", message: "Muitas tentativas. Aguarde alguns segundos." };
+    }
+
     await assertListOwnership(supabase, normalizedListId, userId);
 
     const { error } = await supabase
@@ -762,15 +843,23 @@ export async function unpurchaseAllListItemsAction(listId: string): Promise<Purc
 export async function softDeleteUserProductAction(
   formData: FormData,
 ): Promise<PurchaseActionState> {
-  const listId = String(formData.get("listId") ?? "");
-  const productId = String(formData.get("productId") ?? "");
+  let listId = "";
+  let productId = "";
 
-  if (!listId || !productId) {
+  try {
+    listId = parseUuid(formData.get("listId"));
+    productId = parseUuid(formData.get("productId"));
+  } catch {
     return { status: "error", message: "Dados invalidos." };
   }
 
   try {
     const { supabase, userId } = await requireUserContext();
+    const rateLimitResult = enforceWriteActionRateLimit(userId, "soft-delete-product");
+    if (!rateLimitResult.allowed) {
+      return { status: "error", message: "Muitas tentativas. Aguarde alguns segundos." };
+    }
+
     await assertListOwnership(supabase, listId, userId);
 
     const { data: deletedProduct, error: deleteError } = await supabase

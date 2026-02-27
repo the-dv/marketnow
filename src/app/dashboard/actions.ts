@@ -1,12 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { parseTrimmedString, parseUuid } from "@/lib/validation";
 
 export type DashboardActionResult = {
   status: "success" | "error";
   message: string;
 };
+
+const DASHBOARD_WRITE_RATE_LIMIT = {
+  maxHits: 20,
+  windowMs: 60_000,
+} as const;
 
 async function requireUserId() {
   const supabase = await createSupabaseServerClient();
@@ -22,15 +29,23 @@ async function requireUserId() {
 }
 
 export async function createShoppingListAction(formData: FormData): Promise<DashboardActionResult> {
-  const rawName = formData.get("name");
-  const name = typeof rawName === "string" ? rawName.trim() : "";
-
-  if (!name || name.length > 120) {
+  let name = "";
+  try {
+    name = parseTrimmedString(formData.get("name"), { minLength: 2, maxLength: 120 });
+  } catch {
     return { status: "error", message: "Informe um nome de lista valido." };
   }
 
   try {
     const { supabase, userId } = await requireUserId();
+    const rateLimitResult = enforceRateLimit({
+      key: `dashboard:create:list:${userId}`,
+      ...DASHBOARD_WRITE_RATE_LIMIT,
+    });
+
+    if (!rateLimitResult.allowed) {
+      return { status: "error", message: "Muitas tentativas. Aguarde alguns segundos." };
+    }
 
     const { error } = await supabase.from("shopping_lists").insert({
       user_id: userId,
@@ -54,15 +69,32 @@ export async function toggleShoppingListStatusAction(
 ): Promise<DashboardActionResult> {
   const rawId = formData.get("listId");
   const rawStatus = formData.get("status");
-  const listId = typeof rawId === "string" ? rawId : "";
-  const status = rawStatus === "archived" ? "archived" : "active";
+  let listId = "";
+  let status: "active" | "archived" = "active";
 
-  if (!listId) {
+  if (rawStatus !== "archived" && rawStatus !== "active") {
+    return { status: "error", message: "Status invalido." };
+  }
+
+  status = rawStatus;
+
+  try {
+    listId = parseUuid(rawId);
+  } catch {
     return { status: "error", message: "Lista invalida." };
   }
 
   try {
     const { supabase, userId } = await requireUserId();
+    const rateLimitResult = enforceRateLimit({
+      key: `dashboard:toggle-list-status:${userId}`,
+      ...DASHBOARD_WRITE_RATE_LIMIT,
+    });
+
+    if (!rateLimitResult.allowed) {
+      return { status: "error", message: "Muitas tentativas. Aguarde alguns segundos." };
+    }
+
     const { error } = await supabase
       .from("shopping_lists")
       .update({ status })
@@ -84,15 +116,24 @@ export async function toggleShoppingListStatusAction(
 }
 
 export async function deleteShoppingListAction(formData: FormData): Promise<DashboardActionResult> {
-  const rawId = formData.get("listId");
-  const listId = typeof rawId === "string" ? rawId : "";
-
-  if (!listId) {
+  let listId = "";
+  try {
+    listId = parseUuid(formData.get("listId"));
+  } catch {
     return { status: "error", message: "Lista invalida." };
   }
 
   try {
     const { supabase, userId } = await requireUserId();
+    const rateLimitResult = enforceRateLimit({
+      key: `dashboard:delete-list:${userId}`,
+      ...DASHBOARD_WRITE_RATE_LIMIT,
+    });
+
+    if (!rateLimitResult.allowed) {
+      return { status: "error", message: "Muitas tentativas. Aguarde alguns segundos." };
+    }
+
     const { error } = await supabase
       .from("shopping_lists")
       .delete()

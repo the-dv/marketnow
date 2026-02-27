@@ -386,6 +386,17 @@ body {
   width: 32px;
 }
 
+.checkbox-header-cell {
+  width: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-checkbox-input {
+  margin: 0;
+}
+
 .product-name-cell {
   min-width: 0;
 }
@@ -563,6 +574,58 @@ body {
   border-radius: 16px;
   padding: 1rem;
   box-shadow: 0 12px 30px rgb(17 17 17 / 15%);
+}
+
+.modal-card-wide {
+  max-width: 680px;
+}
+
+.modal-close-button {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.modal-close-button:hover {
+  background: #f4f6fa;
+  border-color: #d3d8e3;
+}
+
+.modal-close-button:focus-visible {
+  outline: 2px solid rgb(11 95 255 / 35%);
+  outline-offset: 2px;
+}
+
+.bulk-price-list {
+  display: grid;
+  gap: 0.5rem;
+  max-height: 340px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.bulk-price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.bulk-price-name {
+  min-width: 0;
+  flex: 1;
+}
+
+.bulk-price-input {
+  width: 170px;
+  flex-shrink: 0;
 }
 
 .toast-viewport {

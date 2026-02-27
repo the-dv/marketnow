@@ -1,10 +1,20 @@
-﻿"use client";
+"use client";
 
-import { FormEvent, KeyboardEvent, useMemo, useState, useTransition } from "react";
+import {
+  FormEvent,
+  KeyboardEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { DeleteIconButton } from "@/components/delete-icon-button";
 import { useToast } from "@/components/toast-provider";
 import {
+  bulkMarkProductsPurchasedAction,
   clearProductPurchaseAction,
   recordProductPurchaseAction,
   softDeleteUserProductAction,
@@ -35,6 +45,8 @@ type MyProductsListProps = {
   categories: CategoryOption[];
 };
 
+type BulkStep = "decision" | "prices" | null;
+
 const UNIT_OPTIONS: Array<"un" | "kg" | "L"> = ["un", "kg", "L"];
 
 function formatCurrency(value: number) {
@@ -51,16 +63,134 @@ function buildFormData(listId: string, productId: string) {
   return formData;
 }
 
+function extractDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function formatBrlFromDigits(digits: string) {
+  if (!digits) {
+    return "";
+  }
+
+  const value = Number(digits) / 100;
+  return formatCurrency(value);
+}
+
+function formatBrlFromNumber(value: number | null) {
+  if (value === null || !Number.isFinite(value)) {
+    return "";
+  }
+
+  return formatCurrency(value);
+}
+
+function parseBrlToNumber(maskedValue: string) {
+  const digits = extractDigits(maskedValue);
+  if (!digits) {
+    return null;
+  }
+
+  return Number((Number(digits) / 100).toFixed(2));
+}
+
+function normalizeQuantityInput(rawValue: string) {
+  let sanitized = rawValue.replace(/[^0-9.,]/g, "").replace(/,/g, ".");
+  const dotIndex = sanitized.indexOf(".");
+  if (dotIndex !== -1) {
+    const integerPart = sanitized.slice(0, dotIndex);
+    const decimalPart = sanitized
+      .slice(dotIndex + 1)
+      .replace(/\./g, "")
+      .slice(0, 3);
+    sanitized = `${integerPart}.${decimalPart}`;
+  }
+
+  return sanitized;
+}
+
+function shouldBlockNumericChar(event: KeyboardEvent<HTMLInputElement>) {
+  if (event.ctrlKey || event.metaKey || event.altKey) {
+    return false;
+  }
+
+  return ["e", "E", "+", "-", "@"].includes(event.key);
+}
+
 export function MyProductsList({ listId, products, categories }: MyProductsListProps) {
   const router = useRouter();
   const { pushToast } = useToast();
   const [activeProduct, setActiveProduct] = useState<MyProductEntry | null>(null);
   const [priceInput, setPriceInput] = useState("");
   const [saveReference, setSaveReference] = useState(true);
+  const [bulkStep, setBulkStep] = useState<BulkStep>(null);
+  const [bulkPriceInputs, setBulkPriceInputs] = useState<Record<string, string>>({});
   const [pendingProductId, setPendingProductId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
+  const bulkModalRef = useRef<HTMLDivElement>(null);
 
   const productsCountLabel = useMemo(() => `${products.length} cadastrado(s)`, [products.length]);
+  const purchasedCount = useMemo(
+    () => products.filter((product) => product.purchased).length,
+    [products],
+  );
+  const allPurchased = products.length > 0 && purchasedCount === products.length;
+  const somePurchased = purchasedCount > 0 && purchasedCount < products.length;
+
+  useEffect(() => {
+    if (!selectAllCheckboxRef.current) {
+      return;
+    }
+
+    selectAllCheckboxRef.current.indeterminate = somePurchased;
+  }, [somePurchased]);
+
+  const closeBulkModal = useCallback(() => {
+    setBulkStep(null);
+    setBulkPriceInputs({});
+  }, []);
+
+  useEffect(() => {
+    if (!bulkStep || !bulkModalRef.current) {
+      return;
+    }
+
+    const dialog = bulkModalRef.current;
+    const focusableSelector =
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    const focusableElements = Array.from(
+      dialog.querySelectorAll<HTMLElement>(focusableSelector),
+    ).filter((element) => !element.hasAttribute("disabled"));
+
+    focusableElements[0]?.focus();
+
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeBulkModal();
+        return;
+      }
+
+      if (event.key !== "Tab" || focusableElements.length === 0) {
+        return;
+      }
+
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+      const active = document.activeElement;
+
+      if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [bulkStep, closeBulkModal]);
 
   function closeModal() {
     setActiveProduct(null);
@@ -70,8 +200,61 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
 
   function openPriceModal(product: MyProductEntry, keepReference = true) {
     setActiveProduct(product);
-    setPriceInput(product.paidPrice ? String(product.paidPrice.toFixed(2)).replace(".", ",") : "");
+    setPriceInput(formatBrlFromNumber(product.paidPrice));
     setSaveReference(keepReference);
+  }
+
+  function openBulkDecisionModal() {
+    const initialInputs: Record<string, string> = {};
+    for (const product of products) {
+      const basePrice = product.paidPrice ?? product.referencePrice;
+      initialInputs[product.id] = formatBrlFromNumber(basePrice);
+    }
+
+    setBulkPriceInputs(initialInputs);
+    setBulkStep("decision");
+  }
+
+  function buildBulkItemsWithCurrentAndReferenceValues() {
+    return products.map((product) => {
+      const price = product.paidPrice ?? product.referencePrice;
+      return {
+        productId: product.id,
+        paidPrice: price ?? undefined,
+      };
+    });
+  }
+
+  function buildBulkItemsFromModalValues() {
+    return products.map((product) => {
+      const paidPrice = parseBrlToNumber(bulkPriceInputs[product.id] ?? "");
+      return {
+        productId: product.id,
+        paidPrice: paidPrice ?? undefined,
+      };
+    });
+  }
+
+  function runBulkPurchase(items: Array<{ productId: string; paidPrice?: number }>, persistReference: boolean) {
+    startTransition(async () => {
+      setPendingProductId("__bulk__");
+      const formData = new FormData();
+      formData.append("listId", listId);
+      formData.append("items", JSON.stringify(items));
+      if (persistReference) {
+        formData.append("saveReference", "on");
+      }
+
+      const result = (await bulkMarkProductsPurchasedAction(formData)) as PurchaseActionState;
+      pushToast({ kind: result.status, message: result.message });
+
+      setPendingProductId(null);
+
+      if (result.status === "success") {
+        closeBulkModal();
+        router.refresh();
+      }
+    });
   }
 
   async function handleUncheck(productId: string) {
@@ -117,6 +300,14 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
     });
   }
 
+  function handleSelectAllCheckboxChange(checked: boolean) {
+    if (!checked || products.length === 0) {
+      return;
+    }
+
+    openBulkDecisionModal();
+  }
+
   function handleConfirmPurchase(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -124,9 +315,15 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
       return;
     }
 
+    const parsedPaidPrice = parseBrlToNumber(priceInput);
+    if (parsedPaidPrice === null) {
+      pushToast({ kind: "error", message: "Informe um preco valido." });
+      return;
+    }
+
     startTransition(async () => {
       const formData = buildFormData(listId, activeProduct.id);
-      formData.append("paidPrice", priceInput);
+      formData.append("paidPrice", parsedPaidPrice.toFixed(2));
       if (saveReference) {
         formData.append("saveReference", "on");
       }
@@ -166,6 +363,18 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
     event.currentTarget.form?.requestSubmit();
   }
 
+  function handleQuantityKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      event.currentTarget.form?.requestSubmit();
+      return;
+    }
+
+    if (shouldBlockNumericChar(event)) {
+      event.preventDefault();
+    }
+  }
+
   function handleDeleteProduct(product: MyProductEntry) {
     const shouldDelete = window.confirm(`Excluir o produto \"${product.name}\"?`);
 
@@ -202,7 +411,16 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
       ) : (
         <div className="products-grid-wrapper">
           <div className="products-grid-head">
-            <span aria-hidden="true" className="checkbox-header-spacer" />
+            <span className="checkbox-header-cell">
+              <input
+                aria-label="Selecionar todos"
+                checked={allPurchased}
+                className="list-checkbox-input header-checkbox-input"
+                onChange={(event) => handleSelectAllCheckboxChange(event.target.checked)}
+                ref={selectAllCheckboxRef}
+                type="checkbox"
+              />
+            </span>
             <span>Nome</span>
             <span>Categoria</span>
             <span>Qtd</span>
@@ -241,12 +459,12 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                   <div className="product-name-inline">
                     <input
                       className="input"
-                      name="name"
-                      defaultValue={product.name}
                       disabled={isBusy}
                       maxLength={120}
+                      name="name"
                       onBlur={(event) => event.currentTarget.form?.requestSubmit()}
                       onKeyDown={handleFieldEnter}
+                      defaultValue={product.name}
                       required
                     />
                     {product.purchased && product.paidPrice ? (
@@ -265,12 +483,12 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                 <div className="category-cell" data-label="Categoria">
                   <select
                     className="input"
-                    name="categoryId"
+                    disabled={isBusy}
                     defaultValue={product.categoryId ?? "__NONE__"}
+                    name="categoryId"
                     onBlur={(event) => event.currentTarget.form?.requestSubmit()}
                     onChange={(event) => event.currentTarget.form?.requestSubmit()}
                     onKeyDown={handleFieldEnter}
-                    disabled={isBusy}
                     title={product.categoryName}
                   >
                     <option value="__NONE__">Sem categoria</option>
@@ -285,26 +503,30 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                 <div className="quantity-cell" data-label="Quantidade">
                   <input
                     className="input quantity-input"
-                    type="number"
-                    min="0.001"
-                    step="0.001"
-                    name="quantity"
                     defaultValue={String(product.quantity)}
-                    onBlur={(event) => event.currentTarget.form?.requestSubmit()}
-                    onKeyDown={handleFieldEnter}
                     disabled={isBusy}
+                    inputMode="decimal"
+                    min="0.001"
+                    name="quantity"
+                    onBlur={(event) => event.currentTarget.form?.requestSubmit()}
+                    onInput={(event) => {
+                      event.currentTarget.value = normalizeQuantityInput(event.currentTarget.value);
+                    }}
+                    onKeyDown={handleQuantityKeyDown}
+                    step="0.001"
+                    type="text"
                   />
                 </div>
 
                 <div className="unit-cell" data-label="Unidade">
                   <select
                     className="input unit-input"
-                    name="unit"
                     defaultValue={product.unit}
+                    disabled={isBusy}
+                    name="unit"
                     onBlur={(event) => event.currentTarget.form?.requestSubmit()}
                     onChange={(event) => event.currentTarget.form?.requestSubmit()}
                     onKeyDown={handleFieldEnter}
-                    disabled={isBusy}
                   >
                     {UNIT_OPTIONS.map((unitOption) => (
                       <option key={unitOption} value={unitOption}>
@@ -329,7 +551,15 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
       )}
 
       {activeProduct ? (
-        <div className="modal-backdrop" role="presentation">
+        <div
+          className="modal-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              closeModal();
+            }
+          }}
+          role="presentation"
+        >
           <div aria-labelledby="purchase-title" aria-modal="true" className="modal-card stack-md" role="dialog">
             <h3 className="subheading" id="purchase-title">
               Confirmar compra
@@ -344,10 +574,13 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                 autoFocus
                 className="input"
                 id="paidPriceInput"
-                inputMode="decimal"
+                inputMode="numeric"
                 name="paidPrice"
-                onChange={(event) => setPriceInput(event.target.value)}
-                placeholder="Ex.: 12,90"
+                onChange={(event) => {
+                  const digits = extractDigits(event.target.value);
+                  setPriceInput(formatBrlFromDigits(digits));
+                }}
+                placeholder="R$ 0,00"
                 required
                 value={priceInput}
               />
@@ -371,6 +604,91 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {bulkStep ? (
+        <div
+          className="modal-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              closeBulkModal();
+            }
+          }}
+          role="presentation"
+        >
+          <div
+            aria-labelledby="bulk-purchase-title"
+            aria-modal="true"
+            className="modal-card stack-md modal-card-wide"
+            ref={bulkModalRef}
+            role="dialog"
+          >
+            <div className="row-between">
+              <h3 className="subheading" id="bulk-purchase-title">
+                {bulkStep === "decision" ? "Marcar todos como comprados" : "Informar precos"}
+              </h3>
+              <button className="modal-close-button" onClick={closeBulkModal} type="button">
+                X
+              </button>
+            </div>
+
+            {bulkStep === "decision" ? (
+              <>
+                <p className="text-muted">
+                  Deseja informar e salvar os precos pagos para estes produtos agora?
+                </p>
+                <div className="row-actions">
+                  <button className="button" onClick={() => setBulkStep("prices")} type="button">
+                    Sim, salvar precos
+                  </button>
+                  <button
+                    className="button button-secondary"
+                    onClick={() => runBulkPurchase(buildBulkItemsWithCurrentAndReferenceValues(), false)}
+                    type="button"
+                  >
+                    Nao, apenas marcar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="bulk-price-list">
+                  {products.map((product) => (
+                    <div className="bulk-price-row" key={product.id}>
+                      <span className="bulk-price-name">{product.name}</span>
+                      <input
+                        className="input bulk-price-input"
+                        inputMode="numeric"
+                        onChange={(event) => {
+                          const digits = extractDigits(event.target.value);
+                          setBulkPriceInputs((current) => ({
+                            ...current,
+                            [product.id]: formatBrlFromDigits(digits),
+                          }));
+                        }}
+                        placeholder="R$ 0,00"
+                        value={bulkPriceInputs[product.id] ?? ""}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="row-actions">
+                  <button
+                    className="button"
+                    onClick={() => runBulkPurchase(buildBulkItemsFromModalValues(), true)}
+                    type="button"
+                  >
+                    Salvar valores
+                  </button>
+                  <button className="button button-secondary" onClick={closeBulkModal} type="button">
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       ) : null}

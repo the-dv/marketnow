@@ -21,6 +21,7 @@ Este arquivo registra tarefas que dependem de painel externo (Supabase/Vercel) e
    - `supabase/migrations/20260227_fix_optional_category_id.sql`
    - `supabase/migrations/20260227_category_fallback_outros.sql`
    - `supabase/migrations/202602271330_create_default_category_outros.sql`
+   - `supabase/migrations/202602271730_bulk_mark_products_purchased.sql`
 4. Executar `supabase/seed.sql`.
 
 ### Validacao rapida (SQL)

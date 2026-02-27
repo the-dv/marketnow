@@ -18,6 +18,11 @@ export type PurchaseActionState = {
   message: string;
 };
 
+type BulkPurchaseItem = {
+  productId: string;
+  paidPrice?: number;
+};
+
 type SupabaseErrorLike = {
   message?: string;
   code?: string;
@@ -198,6 +203,50 @@ function parsePaidPriceInput(raw: FormDataEntryValue | null) {
   }
 
   return Number(parsed.toFixed(2));
+}
+
+function parseBulkPurchaseItems(raw: FormDataEntryValue | null) {
+  if (typeof raw !== "string" || raw.trim() === "") {
+    throw new Error("VALIDATION_ERROR");
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("VALIDATION_ERROR");
+  }
+
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new Error("VALIDATION_ERROR");
+  }
+
+  const normalizedItems: BulkPurchaseItem[] = [];
+  for (const entry of parsed) {
+    if (!entry || typeof entry !== "object") {
+      throw new Error("VALIDATION_ERROR");
+    }
+
+    const candidate = entry as { productId?: unknown; paidPrice?: unknown };
+    const productId = typeof candidate.productId === "string" ? candidate.productId.trim() : "";
+    if (!productId) {
+      throw new Error("VALIDATION_ERROR");
+    }
+
+    if (candidate.paidPrice === undefined || candidate.paidPrice === null) {
+      normalizedItems.push({ productId });
+      continue;
+    }
+
+    const paidPrice = Number(candidate.paidPrice);
+    if (!Number.isFinite(paidPrice) || paidPrice <= 0) {
+      throw new Error("VALIDATION_ERROR");
+    }
+
+    normalizedItems.push({ productId, paidPrice: Number(paidPrice.toFixed(2)) });
+  }
+
+  return normalizedItems;
 }
 
 async function getOwnedProduct(
@@ -622,6 +671,57 @@ export async function clearProductPurchaseAction(formData: FormData): Promise<Pu
     return { status: "success", message: "Item desmarcado." };
   } catch {
     return { status: "error", message: "Nao foi possivel atualizar o item." };
+  }
+}
+
+export async function bulkMarkProductsPurchasedAction(
+  formData: FormData,
+): Promise<PurchaseActionState> {
+  const listId = String(formData.get("listId") ?? "").trim();
+  const saveReference = formData.get("saveReference") === "on";
+
+  if (!listId) {
+    return { status: "error", message: "Lista invalida." };
+  }
+
+  let items: BulkPurchaseItem[] = [];
+  try {
+    items = parseBulkPurchaseItems(formData.get("items"));
+  } catch {
+    return { status: "error", message: "Dados da compra em massa invalidos." };
+  }
+
+  try {
+    const { supabase, userId } = await requireUserContext();
+    await assertListOwnership(supabase, listId, userId);
+
+    const rpcPayload = items.map((item) => ({
+      productId: item.productId,
+      paidPrice: item.paidPrice ?? null,
+    }));
+
+    const { error } = await supabase.rpc("bulk_mark_products_purchased", {
+      p_list_id: listId,
+      p_items: rpcPayload,
+      p_save_reference: saveReference,
+    });
+
+    if (error) {
+      if (
+        error.message.includes("AUTH_REQUIRED") ||
+        error.message.includes("FORBIDDEN") ||
+        error.message.includes("VALIDATION_ERROR")
+      ) {
+        return { status: "error", message: "Nao foi possivel concluir a compra em massa." };
+      }
+
+      return { status: "error", message: withDevErrorDetails("Erro ao marcar todos.", error) };
+    }
+
+    revalidatePath(`/lists/${listId}`);
+    return { status: "success", message: "Produtos marcados como comprados." };
+  } catch {
+    return { status: "error", message: "Falha de autenticacao ou permissao." };
   }
 }
 

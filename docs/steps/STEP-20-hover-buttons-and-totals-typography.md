@@ -19,7 +19,7 @@ Ajustar UX visual do Dashboard e Lista para:
 - [x] Tipografia do valor em "Total por categoria" normalizada (sem bold pesado).
 - [x] `npm run lint` executado com sucesso.
 - [x] `npm run build` executado com sucesso.
-- [ ] Commit realizado com referencia `STEP-20`.
+- [x] Commit realizado com referencia `STEP-20`.
 
 ## Criterios de Aceite
 

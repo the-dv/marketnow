@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { Button } from "@/components/ui/button";
 
 export function SignOutButton() {
   const router = useRouter();
@@ -14,9 +15,8 @@ export function SignOutButton() {
   }
 
   return (
-    <button className="button button-secondary" onClick={handleSignOut} type="button">
+    <Button onClick={handleSignOut} variant="dark">
       Sair
-    </button>
+    </Button>
   );
 }
-

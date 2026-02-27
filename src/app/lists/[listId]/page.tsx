@@ -1,5 +1,6 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { buttonClassName } from "@/components/ui/button";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { mapUfToMacroRegion } from "@/services/location-service";
 import { estimateListTotal } from "@/services/pricing-service";
@@ -229,7 +230,7 @@ export default async function ListDetailsPage({
       <section className="card stack-sm">
         <div className="row-between">
           <h1 className="heading">{list.name}</h1>
-          <Link className="button button-secondary" href="/dashboard">
+          <Link className={buttonClassName({ variant: "dark" })} href="/dashboard">
             Voltar
           </Link>
         </div>
@@ -279,3 +280,5 @@ export default async function ListDetailsPage({
     </main>
   );
 }
+
+

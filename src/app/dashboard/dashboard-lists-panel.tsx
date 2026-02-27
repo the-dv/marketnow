@@ -1,9 +1,11 @@
 "use client";
 
 import { FormEvent, KeyboardEvent, useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { DeleteIconButton } from "@/components/delete-icon-button";
 import { useToast } from "@/components/toast-provider";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import type { DashboardActionResult } from "./actions";
 import {
   createShoppingListAction,
@@ -132,9 +134,9 @@ export function DashboardListsPanel({ lists, hasLoadError }: DashboardListsPanel
             type="text"
             value={newListName}
           />
-          <button className="button button-nowrap" disabled={pendingCreate} type="submit">
+          <Button className="btn-create-list" disabled={pendingCreate} size="lg" type="submit">
             {pendingCreate ? "Criando..." : "Criar lista"}
-          </button>
+          </Button>
         </form>
       </section>
 
@@ -176,19 +178,22 @@ export function DashboardListsPanel({ lists, hasLoadError }: DashboardListsPanel
               </div>
 
               <div className="row-actions" onClick={(event) => event.stopPropagation()}>
-                <button
-                  className="button button-secondary button-nowrap"
+                <Button
+                  className="btn-list-action"
                   disabled={isBusy}
                   onClick={() => handleToggleStatus(list.id, nextStatus)}
                   type="button"
+                  variant="dark"
                 >
                   {isBusy ? "Salvando..." : list.status === "active" ? "Arquivar" : "Reativar"}
-                </button>
-                <DeleteIconButton
+                </Button>
+                <IconButton
+                  aria-label={`Excluir lista ${list.name}`}
                   disabled={isBusy}
-                  label={`Excluir lista ${list.name}`}
+                  icon={<Trash2 size={16} />}
                   onClick={() => handleDeleteList(list.id)}
-                  title="Excluir lista"
+                  tooltip="Excluir lista"
+                  variant="danger"
                 />
               </div>
             </article>

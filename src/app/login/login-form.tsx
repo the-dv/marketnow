@@ -3,6 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { Button } from "@/components/ui/button";
 
 type Status = {
   type: "idle" | "success" | "error";
@@ -72,13 +73,12 @@ export function LoginForm() {
         required
       />
 
-      <button className="button" type="submit" disabled={isLoading}>
+      <Button disabled={isLoading} type="submit">
         {isLoading ? "Enviando..." : "Enviar Magic Link"}
-      </button>
+      </Button>
 
       {status.type === "success" ? <p className="text-success">{status.message}</p> : null}
       {status.type === "error" ? <p className="text-error">{status.message}</p> : null}
     </form>
   );
 }
-

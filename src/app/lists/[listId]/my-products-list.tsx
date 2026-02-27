@@ -10,9 +10,11 @@ import {
   useState,
   useTransition,
 } from "react";
+import { Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { DeleteIconButton } from "@/components/delete-icon-button";
 import { useToast } from "@/components/toast-provider";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import {
   bulkMarkProductsPurchasedAction,
   clearProductPurchaseAction,
@@ -566,11 +568,13 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                 </div>
 
                 <div className="actions-cell" data-label="Acoes">
-                  <DeleteIconButton
+                  <IconButton
+                    aria-label={`Excluir ${product.name}`}
                     disabled={isBusy}
-                    label={`Excluir ${product.name}`}
+                    icon={<Trash2 size={16} />}
                     onClick={() => handleDeleteProduct(product)}
-                    title="Excluir produto"
+                    tooltip="Excluir produto"
+                    variant="danger"
                   />
                 </div>
               </form>
@@ -625,12 +629,12 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
               </label>
 
               <div className="row-actions">
-                <button className="button button-secondary" onClick={closeModal} type="button">
+                <Button onClick={closeModal} variant="dark">
                   Cancelar
-                </button>
-                <button className="button" disabled={isPending} type="submit">
+                </Button>
+                <Button disabled={isPending} type="submit">
                   {isPending ? "Confirmando..." : "Confirmar"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -662,9 +666,14 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                     ? "Desmarcar todos como comprados"
                     : "Informar precos"}
               </h3>
-              <button className="modal-close-button" onClick={closeBulkModal} type="button">
-                X
-              </button>
+              <IconButton
+                aria-label="Fechar modal"
+                icon={<X size={14} />}
+                onClick={closeBulkModal}
+                size="sm"
+                tooltip="Fechar"
+                variant="ghost"
+              />
             </div>
 
             {bulkStep === "decision" ? (
@@ -673,16 +682,16 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                   Deseja informar e salvar os precos pagos para estes produtos agora?
                 </p>
                 <div className="row-actions">
-                  <button className="button" onClick={() => setBulkStep("prices")} type="button">
+                  <Button onClick={() => setBulkStep("prices")} type="button">
                     Sim, salvar precos
-                  </button>
-                  <button
-                    className="button button-secondary"
+                  </Button>
+                  <Button
                     onClick={() => runBulkPurchase(buildBulkItemsWithCurrentAndReferenceValues(), false)}
                     type="button"
+                    variant="dark"
                   >
                     Nao, apenas marcar
-                  </button>
+                  </Button>
                 </div>
               </>
             ) : bulkStep === "unpurchase" ? (
@@ -691,12 +700,12 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                   Desmarcar todos como comprados? Isso removera os valores pagos desta lista.
                 </p>
                 <div className="row-actions">
-                  <button className="button" onClick={runBulkUnpurchase} type="button">
+                  <Button onClick={runBulkUnpurchase} type="button">
                     Desmarcar todos
-                  </button>
-                  <button className="button button-secondary" onClick={closeBulkModal} type="button">
+                  </Button>
+                  <Button onClick={closeBulkModal} type="button" variant="dark">
                     Cancelar
-                  </button>
+                  </Button>
                 </div>
               </>
             ) : (
@@ -723,16 +732,12 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                 </div>
 
                 <div className="row-actions">
-                  <button
-                    className="button"
-                    onClick={() => runBulkPurchase(buildBulkItemsFromModalValues(), true)}
-                    type="button"
-                  >
+                  <Button onClick={() => runBulkPurchase(buildBulkItemsFromModalValues(), true)} type="button">
                     Salvar valores
-                  </button>
-                  <button className="button button-secondary" onClick={closeBulkModal} type="button">
+                  </Button>
+                  <Button onClick={closeBulkModal} type="button" variant="dark">
                     Cancelar
-                  </button>
+                  </Button>
                 </div>
               </>
             )}

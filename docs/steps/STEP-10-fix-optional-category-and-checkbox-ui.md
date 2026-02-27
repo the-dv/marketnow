@@ -1,5 +1,12 @@
 ﻿# STEP-10 - Fix Optional Category And Checkbox UI
 
+## Status atual (historico)
+
+Esta etapa foi superada pela regra final definida na `STEP-11` e reforcada por migracao dedicada:
+- `products.category_id` e `NOT NULL`
+- UI "Sem categoria" persiste como categoria `outros`
+- o app nao cria/atualiza `categories` em runtime
+
 ## Objetivo
 
 Corrigir definitivamente a regra de negocio de categoria opcional em produtos, garantindo persistencia de `category_id = NULL`, e limpar o layout da coluna de checkbox em `/lists/:id`.

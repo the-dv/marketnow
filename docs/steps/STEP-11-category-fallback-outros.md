@@ -47,7 +47,8 @@ Aplicar a nova regra de negocio: `products.category_id` permanece `NOT NULL`, e 
 ## Arquitetura / Design
 
 - Conversao de categoria opcional acontece somente no backend para manter consistencia.
-- Helper `getOrCreateOutrosCategoryId` com cache simples por execucao da action.
+- Resolucao de `outros` acontece por `SELECT` (somente leitura) em `categories`.
+- Se `outros` nao existir, a action retorna erro orientando aplicar migracao/seed no Supabase.
 - SQL e backend funcionam em conjunto para evitar regressao (schema + regra de aplicacao).
 
 ## Alteracoes esperadas (arquivos)
@@ -105,7 +106,7 @@ Aplicar a nova regra de negocio: `products.category_id` permanece `NOT NULL`, e 
 
 ## Pos-etapa (follow-ups)
 
-- Adicionar teste automatizado de create/update com categoria "__none__".
+- Adicionar teste automatizado de create/update com categoria "__NONE__".
 - Revisar docs de data model para refletir regra final de `NOT NULL`.
 
 ## Changelog curto

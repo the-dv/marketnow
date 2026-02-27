@@ -57,11 +57,15 @@ Categorias seed do MVP:
 - `slug text` unique
 - `name text`
 - `owner_user_id uuid null` FK `auth.users` (null = seed global; preenchido = produto privado do usuario)
-- `category_id uuid null` FK `categories` (opcional para produto custom)
+- `category_id uuid not null` FK `categories`
 - `unit text` (`un|kg|L`)
 - `is_active boolean`
 - `created_at timestamptz`
 - `updated_at timestamptz`
+
+Regra vigente de categoria:
+- UI permite "Sem categoria" para UX.
+- Persistencia sempre usa a categoria seed `outros` (`products.category_id` nunca nulo).
 
 ### `user_product_prices` (fonte principal de referencia)
 - `id uuid` PK

@@ -20,6 +20,7 @@ Este arquivo registra tarefas que dependem de painel externo (Supabase/Vercel) e
    - `supabase/migrations/20260227_category_nullable_guard.sql`
    - `supabase/migrations/20260227_fix_optional_category_id.sql`
    - `supabase/migrations/20260227_category_fallback_outros.sql`
+   - `supabase/migrations/202602271330_create_default_category_outros.sql`
 4. Executar `supabase/seed.sql`.
 
 ### Validacao rapida (SQL)
@@ -37,6 +38,27 @@ order by tablename;
 select count(*) as categories_count from public.categories;
 select count(*) as products_count from public.products where is_active = true;
 ```
+
+## Regra final de categoria (vigente)
+
+- `products.category_id` deve permanecer `NOT NULL`.
+- A UI pode usar "Sem categoria", mas o backend sempre persiste como categoria `outros`.
+- O app nao deve criar categoria em runtime.
+
+### Passo obrigatorio no Supabase Cloud
+
+1. Abrir Supabase Dashboard -> SQL Editor.
+2. Executar:
+   - `supabase/migrations/202602271330_create_default_category_outros.sql`
+3. Validar:
+
+```sql
+select id, slug, name
+from public.categories
+where slug = 'outros';
+```
+
+Se nao retornar linha, rode tambem `supabase/seed.sql` e repita a validacao.
 
 ## Supabase - Configuracao Auth Magic Link
 
@@ -96,7 +118,7 @@ where schemaname = 'public'
    - informar preco no modal e confirmar
    - recarregar a pagina e validar checkbox persistido
 
-## STEP-08 (obrigatorio apos merge local)
+## STEP-08 (historico superado pela regra final de categoria)
 
 Para garantir categoria opcional sem regressao e recalculo de total:
 
@@ -117,7 +139,7 @@ where table_schema = 'public'
    - editar categoria para `Outros` e voltar para `Sem categoria`
    - marcar comprado, informar preco e depois excluir produto comprado para validar total atualizado
 
-## STEP-09 (obrigatorio apos merge local)
+## STEP-09 (historico superado pela regra final de categoria)
 
 Para estabilizar cadastro sem categoria e layout da grade:
 
@@ -137,7 +159,7 @@ where table_schema = 'public'
    - criar produto com categoria vazia
    - validar grid alinhada com 4+ produtos em `/lists/:id`
 
-## STEP-10 (obrigatorio apos merge local)
+## STEP-10 (historico superado pela regra final de categoria)
 
 Para corrigir definitivamente categoria opcional:
 

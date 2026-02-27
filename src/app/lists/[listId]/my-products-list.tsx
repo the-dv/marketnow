@@ -229,14 +229,14 @@ export function MyProductsList({ listId, products, categories }: MyProductsListP
                   <select
                     className="input"
                     name="categoryId"
-                    defaultValue={product.categoryId ?? "__none__"}
+                    defaultValue={product.categoryId ?? "__NONE__"}
                     onBlur={(event) => event.currentTarget.form?.requestSubmit()}
                     onChange={(event) => event.currentTarget.form?.requestSubmit()}
                     onKeyDown={handleFieldEnter}
                     disabled={isBusy}
                     title={product.categoryName}
                   >
-                    <option value="__none__">Sem categoria</option>
+                    <option value="__NONE__">Sem categoria</option>
                     {categories.map((category) => (
                       <option key={category.id} value={category.id}>
                         {category.name}

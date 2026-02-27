@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 const VALID_UNITS = new Set(["un", "kg", "L"]);
 const OUTROS_SLUG = "outros";
 const OUTROS_CATEGORY_MISSING_ERROR = "OUTROS_CATEGORY_MISSING";
+const NONE_CATEGORY_SENTINEL = "__NONE__";
 
 export type ProductFormState = {
   status: "idle" | "success" | "error";
@@ -79,7 +80,7 @@ function isOutrosCategoryMissingError(error: unknown) {
 
 function resolveFallbackErrorMessage(defaultMessage: string, error: unknown) {
   if (isOutrosCategoryMissingError(error)) {
-    return "Categoria base nao aplicada. Rode seed/migration do Supabase e tente novamente.";
+    return "Categoria base 'Outros' nao existe; rode a migracao no Supabase.";
   }
 
   return withDevErrorDetails(defaultMessage, error);
@@ -225,6 +226,7 @@ async function resolveCategoryId(
   const normalized = rawCategoryId.trim();
   if (
     !normalized ||
+    normalized === NONE_CATEGORY_SENTINEL ||
     normalized === "__none__" ||
     normalized.toLowerCase() === "null" ||
     normalized.toLowerCase() === "undefined"

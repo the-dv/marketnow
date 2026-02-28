@@ -8,9 +8,7 @@ Repositorio: `https://github.com/the-dv/marketnow.git`
 - Branch local ativa no inicio: `test-branch`
 - No diagnostico inicial, `main` local e `test-branch` local estavam no mesmo commit de app:
   - `7126da263502f6d03824673f62883df8204e0683`
-- Commits locais de documentacao gerados nesta verificacao:
-  - `e074a80` - `docs: add deploy and vercel verification report`
-  - `c745813` - `docs: update deploy report with final hashes`
+- Foram gerados commits locais de documentacao durante esta verificacao.
 - Diferenca entre `main` e `test-branch` apos esses commits: apenas documentacao em `docs/deploy-vercel-check.md` (sem mudanca de codigo de auth/app).
 - Branch remota `origin/main` esta atrasada:
   - `origin/main`: `55439970af18ab8a322f0f62a796628686bec6a8`

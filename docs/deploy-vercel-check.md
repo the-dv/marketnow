@@ -6,16 +6,19 @@ Repositorio: `https://github.com/the-dv/marketnow.git`
 ## Estado atual encontrado
 
 - Branch local ativa no inicio: `test-branch`
-- `main` local e `test-branch` local estao no mesmo commit:
-  - `main`: `7126da263502f6d03824673f62883df8204e0683`
+- No diagnostico inicial, `main` local e `test-branch` local estavam no mesmo commit de app:
+  - `7126da263502f6d03824673f62883df8204e0683`
+- Estado final apos gerar este relatorio:
+  - `main`: `e074a804a33ec645ceb657a16bd1d64df4a5e0aa`
   - `test-branch`: `7126da263502f6d03824673f62883df8204e0683`
+  - Diferenca entre `main` e `test-branch`: apenas `docs/deploy-vercel-check.md`
 - Branch remota `origin/main` esta atrasada:
   - `origin/main`: `55439970af18ab8a322f0f62a796628686bec6a8`
-  - Diferenca: `main` local esta 33 commits a frente de `origin/main`
+  - Diferenca: `main` local esta 34 commits a frente de `origin/main`
 
 ## Branch correta e evidencias (login com senha)
 
-Conclusao: a versao com login por email + senha esta em `main` local (e identica a `test-branch` local), comprovada pelos arquivos e chamadas abaixo.
+Conclusao: a versao com login por email + senha esta em `main` local e em `test-branch` (historico de app identico ate `7126da2`), comprovada pelos arquivos e chamadas abaixo.
 
 ### Evidencias em codigo
 
@@ -75,6 +78,8 @@ git rev-parse main
 git rev-parse origin/main
 git rev-parse test-branch
 git rev-parse origin/test-branch
+git add docs/deploy-vercel-check.md
+git commit -m "docs: add deploy and vercel verification report"
 ```
 
 Comandos de validacao de build:
@@ -109,7 +114,7 @@ Status do push:
 1. Abrir `https://github.com/the-dv/marketnow`.
 2. Entrar na branch `main`.
 3. Confirmar o SHA mais recente da `main`:
-   - Esperado apos push correto: `7126da263502f6d03824673f62883df8204e0683` (ou commit mais novo contendo esse historico).
+   - Esperado apos push correto: `e074a804a33ec645ceb657a16bd1d64df4a5e0aa` (ou commit mais novo contendo esse historico).
 4. Se a `main` ainda estiver em `55439970af18ab8a322f0f62a796628686bec6a8`, executar localmente com credencial correta:
    - `git push origin main`
 5. Confirmar no historico da `main` que o commit `e26041d1f017807c7b82b138f1e5c44d0019f608` existe.
@@ -128,7 +133,7 @@ Status do push:
 3. Ir em **Deployments**.
 4. Abrir o deployment mais recente de producao.
 5. Conferir o **Commit SHA** usado nesse deploy.
-6. O SHA deve ser o ultimo da `main` no GitHub (esperado: `7126da263502f6d03824673f62883df8204e0683` ou mais novo da `main`).
+6. O SHA deve ser o ultimo da `main` no GitHub (esperado: `e074a804a33ec645ceb657a16bd1d64df4a5e0aa` ou mais novo da `main`).
 7. Se SHA divergir:
    - Ajustar **Production Branch** para `main` em Settings -> Git.
    - Acionar **Redeploy** do commit correto da `main`.

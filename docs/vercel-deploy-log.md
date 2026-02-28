@@ -1,5 +1,20 @@
 # Vercel Deploy Log
 
+## 2026-02-28 12:36:29 -03:00
+- SHA publicado na `main`: `c64bcacf58654968a1e1921d49e6929e6f9bbff4`
+- Resumo curto do alterado:
+  - Mantido o fix de reset de senha na `main` (`0e939b9` em historico).
+  - Adicionado este log de deploy (`docs/vercel-deploy-log.md`).
+- Validacoes antes do push:
+  - `npm ci`
+  - `npm run lint`
+  - `npm run build`
+- Evidencias de publicacao:
+  - `git ls-remote origin refs/heads/main` retornou `c64bcacf58654968a1e1921d49e6929e6f9bbff4`.
+  - Status do commit no GitHub: `Vercel` = `success` (`Deployment has completed`) em `2026-02-28T15:36:14Z`.
+  - URL do deploy reportada pelo status do GitHub:
+    - `https://vercel.com/davibcampos29-4191s-projects/marketnow-davi/4VKmfHT2HHHmnXUQmVLN3nfw6pgX`
+
 ## 2026-02-28 12:34:32 -03:00
 - SHA publicado na `main`: `0e939b9a57574ce73ed763378fff32580c408b94`
 - Resumo curto do alterado:

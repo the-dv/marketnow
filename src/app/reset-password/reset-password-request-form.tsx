@@ -12,22 +12,45 @@ type AuthErrorLike = {
   message?: string;
 };
 
+const PRODUCTION_APP_URL = "https://marketnow-davi.vercel.app";
+
+function parseOrigin(value?: string) {
+  if (!value) {
+    return "";
+  }
+
+  try {
+    return new URL(value.trim()).origin;
+  } catch {
+    return "";
+  }
+}
+
+function isLocalOrigin(origin: string) {
+  return origin.includes("://localhost") || origin.includes("://127.0.0.1");
+}
+
 function resolveAppUrl() {
-  const envAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (envAppUrl) {
-    try {
-      const parsed = new URL(envAppUrl);
-      return parsed.origin;
-    } catch {
-      // fallback for local origin
+  const envOrigin = parseOrigin(process.env.NEXT_PUBLIC_APP_URL);
+  const isProduction = process.env.NODE_ENV === "production";
+
+  if (isProduction) {
+    if (envOrigin && !isLocalOrigin(envOrigin)) {
+      return envOrigin;
     }
+
+    return PRODUCTION_APP_URL;
+  }
+
+  if (envOrigin) {
+    return envOrigin;
   }
 
   if (typeof window !== "undefined") {
     return window.location.origin;
   }
 
-  return "";
+  return "http://localhost:3000";
 }
 
 function mapResetRequestError(error: AuthErrorLike) {

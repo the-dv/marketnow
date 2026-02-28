@@ -1,5 +1,14 @@
 # Vercel Deploy Log
 
+## 2026-02-28 15:35:58 -03:00
+- Branch publicada: `main`
+- SHA publicado: `d9c6fab237a96760c68aaab49c5f785aa04bec7e`
+- Origem do merge: `test-branch -> main` (sem squash)
+- Resumo curto das alteracoes:
+  - Publicado na `main` o estado atual da `test-branch` via merge controlado.
+  - Sem refatoracao de codigo, sem alteracao de logica e sem mudancas de UI.
+- Data/hora: `2026-02-28 15:35:58 -03:00`
+
 ## 2026-02-28 15:25:48 -03:00
 - Branch publicada: `test-branch`
 - SHA: `d1fcaf3e0fe3c4e1f367d18fe3ce3272ed7e3cf9`

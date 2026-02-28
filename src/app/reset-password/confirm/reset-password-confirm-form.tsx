@@ -119,6 +119,7 @@ export function ResetPasswordConfirmForm() {
       const supabase = createSupabaseBrowserClient();
       const params = readRecoveryLinkParams();
       const maskedParams = {
+        pathname: window.location.pathname,
         hasCode: Boolean(params.code),
         hasToken: Boolean(params.token),
         hasTokenHash: Boolean(params.tokenHash),
@@ -131,26 +132,9 @@ export function ResetPasswordConfirmForm() {
       setIsRecoveryReady(false);
 
       try {
-        if (params.code) {
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(params.code);
-          devLog("prepare-exchange-code", {
-            ok: !exchangeError,
-            status: Number(exchangeError?.status ?? 0) || undefined,
-            code: (exchangeError as AuthErrorLike | null)?.code ?? undefined,
-          });
+        let lastPrepareError: AuthErrorLike | null = null;
 
-          if (exchangeError) {
-            pushToast({
-              kind: "error",
-              message: mapRecoverySessionError({
-                status: Number(exchangeError.status ?? 0) || undefined,
-                code: (exchangeError as AuthErrorLike).code ?? undefined,
-                message: exchangeError.message ?? undefined,
-              }),
-            });
-            return;
-          }
-        } else if (params.accessToken && params.refreshToken) {
+        if (params.accessToken && params.refreshToken) {
           const { error: setSessionError } = await supabase.auth.setSession({
             access_token: params.accessToken,
             refresh_token: params.refreshToken,
@@ -163,17 +147,15 @@ export function ResetPasswordConfirmForm() {
           });
 
           if (setSessionError) {
-            pushToast({
-              kind: "error",
-              message: mapRecoverySessionError({
-                status: Number(setSessionError.status ?? 0) || undefined,
-                code: (setSessionError as AuthErrorLike).code ?? undefined,
-                message: setSessionError.message ?? undefined,
-              }),
-            });
-            return;
+            lastPrepareError = {
+              status: Number(setSessionError.status ?? 0) || undefined,
+              code: (setSessionError as AuthErrorLike).code ?? undefined,
+              message: setSessionError.message ?? undefined,
+            };
           }
-        } else if (params.tokenHash || params.token) {
+        }
+
+        if ((!params.accessToken || !params.refreshToken) && (params.tokenHash || params.token)) {
           const tokenHash = params.tokenHash ?? params.token;
           const otpType = resolveEmailOtpType(params.type);
           const { error: verifyError } = await supabase.auth.verifyOtp({
@@ -189,15 +171,28 @@ export function ResetPasswordConfirmForm() {
           });
 
           if (verifyError) {
-            pushToast({
-              kind: "error",
-              message: mapRecoverySessionError({
-                status: Number(verifyError.status ?? 0) || undefined,
-                code: (verifyError as AuthErrorLike).code ?? undefined,
-                message: verifyError.message ?? undefined,
-              }),
-            });
-            return;
+            lastPrepareError = {
+              status: Number(verifyError.status ?? 0) || undefined,
+              code: (verifyError as AuthErrorLike).code ?? undefined,
+              message: verifyError.message ?? undefined,
+            };
+          }
+        }
+
+        if ((!params.accessToken || !params.refreshToken) && params.code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(params.code);
+          devLog("prepare-exchange-code", {
+            ok: !exchangeError,
+            status: Number(exchangeError?.status ?? 0) || undefined,
+            code: (exchangeError as AuthErrorLike | null)?.code ?? undefined,
+          });
+
+          if (exchangeError) {
+            lastPrepareError = {
+              status: Number(exchangeError.status ?? 0) || undefined,
+              code: (exchangeError as AuthErrorLike).code ?? undefined,
+              message: exchangeError.message ?? undefined,
+            };
           }
         }
 
@@ -209,6 +204,22 @@ export function ResetPasswordConfirmForm() {
         });
 
         if (!session) {
+          if (lastPrepareError) {
+            devLog("prepare-failed", {
+              kind: "auth_error",
+              status: Number(lastPrepareError.status ?? 0) || undefined,
+              code: lastPrepareError.code ?? undefined,
+            });
+            pushToast({
+              kind: "error",
+              message: mapRecoverySessionError(lastPrepareError),
+            });
+            return;
+          }
+
+          devLog("prepare-failed", {
+            kind: "session_not_found",
+          });
           pushToast({
             kind: "error",
             message: "Sessao de redefinicao nao encontrada. Abra o link enviado no email.",
@@ -219,6 +230,7 @@ export function ResetPasswordConfirmForm() {
         setIsRecoveryReady(true);
       } catch (error) {
         devLog("prepare-exception", {
+          kind: error instanceof Error ? error.name : "unknown_error",
           error: error instanceof Error ? error.message : String(error),
         });
         pushToast({
@@ -321,6 +333,7 @@ export function ResetPasswordConfirmForm() {
       router.refresh();
     } catch (error) {
       devLog("submit-exception", {
+        kind: error instanceof Error ? error.name : "unknown_error",
         error: error instanceof Error ? error.message : String(error),
       });
       pushToast({

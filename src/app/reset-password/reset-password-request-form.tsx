@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { useToast } from "@/components/toast-provider";
 import { Button } from "@/components/ui/button";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { supabaseEnv } from "@/lib/supabase/env";
 
 type AuthErrorLike = {
   status?: number;
@@ -13,21 +14,32 @@ type AuthErrorLike = {
 };
 
 function resolveAppUrl() {
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+
   const envAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
   if (envAppUrl) {
     try {
       const parsed = new URL(envAppUrl);
       return parsed.origin;
     } catch {
-      // fallback for local origin
+      // fallback for empty origin
     }
   }
 
-  if (typeof window !== "undefined") {
-    return window.location.origin;
-  }
-
   return "";
+}
+
+function createResetPasswordRequestClient() {
+  return createClient(supabaseEnv.url, supabaseEnv.anonKey, {
+    auth: {
+      flowType: "implicit",
+      detectSessionInUrl: false,
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
 }
 
 function mapResetRequestError(error: AuthErrorLike) {
@@ -140,8 +152,26 @@ export function ResetPasswordRequestForm() {
     setIsSending(true);
 
     try {
-      const supabase = createSupabaseBrowserClient();
       const redirectTo = `${resolveAppUrl()}/reset-password/confirm`;
+      if (process.env.NODE_ENV !== "production") {
+        let resolvedPathname = "";
+        let hasAppUrlEnv = false;
+        try {
+          hasAppUrlEnv = Boolean(process.env.NEXT_PUBLIC_APP_URL);
+          resolvedPathname = new URL(redirectTo).pathname;
+        } catch {
+          resolvedPathname = "";
+        }
+
+        console.info("[auth-reset-request]", {
+          pathname: typeof window !== "undefined" ? window.location.pathname : "",
+          hasAppUrlEnv,
+          redirectOrigin: redirectTo.replace(/\/reset-password\/confirm$/, ""),
+          redirectPathname: resolvedPathname,
+        });
+      }
+
+      const supabase = createResetPasswordRequestClient();
       const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
 
       if (process.env.NODE_ENV !== "production") {

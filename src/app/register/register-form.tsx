@@ -1,46 +1,59 @@
 "use client";
 
-import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast-provider";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { Button } from "@/components/ui/button";
 
 type AuthErrorLike = {
   status?: number;
-  name?: string;
-  message?: string;
   code?: string;
+  message?: string;
 };
 
-export function LoginForm() {
+function mapSignUpError(error: AuthErrorLike) {
+  const normalizedStatus = Number(error.status ?? 0);
+  const normalizedCode = String(error.code ?? "").toLowerCase();
+  const normalizedMessage = String(error.message ?? "").toLowerCase();
+  const isRateLimit =
+    normalizedStatus === 429 ||
+    normalizedMessage.includes("rate limit") ||
+    normalizedMessage.includes("too many requests");
+
+  if (isRateLimit) {
+    return "Muitas tentativas. Aguarde e tente novamente em instantes.";
+  }
+
+  if (normalizedCode === "user_already_exists" || normalizedMessage.includes("already registered")) {
+    return "Este email ja possui conta. Faca login.";
+  }
+
+  if (normalizedStatus === 400 || normalizedStatus === 422) {
+    return "Nao foi possivel criar conta. Verifique os dados e tente novamente.";
+  }
+
+  if (normalizedStatus === 403) {
+    return "Cadastro por email/senha nao esta habilitado.";
+  }
+
+  if (normalizedStatus >= 500) {
+    return "Falha temporaria. Tente novamente.";
+  }
+
+  return "Falha ao criar conta. Tente novamente.";
+}
+
+export function RegisterForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cooldownUntilMs, setCooldownUntilMs] = useState<number | null>(null);
-  const callbackErrorToastShownRef = useRef(false);
-  const authInFlightRef = useRef(false);
+  const submitInFlightRef = useRef(false);
   const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { pushToast } = useToast();
-  const callbackError = useMemo(
-    () => searchParams.get("error") === "auth_callback_failed",
-    [searchParams],
-  );
-
-  useEffect(() => {
-    if (!callbackError || callbackErrorToastShownRef.current) {
-      return;
-    }
-
-    callbackErrorToastShownRef.current = true;
-    pushToast({
-      kind: "error",
-      message: "Falha de autenticacao. Tente entrar novamente.",
-    });
-  }, [callbackError, pushToast]);
 
   useEffect(() => {
     return () => {
@@ -94,45 +107,11 @@ export function LoginForm() {
     }, safeSeconds * 1000);
   }
 
-  function mapAuthError(error: AuthErrorLike) {
-    const normalizedStatus = Number(error.status ?? 0);
-    const normalizedCode = String(error.code ?? "").toLowerCase();
-    const normalizedMessage = String(error.message ?? "").toLowerCase();
-    const isRateLimit =
-      normalizedStatus === 429 ||
-      normalizedMessage.includes("rate limit") ||
-      normalizedMessage.includes("too many requests");
-
-    if (isRateLimit) {
-      return "Muitas tentativas. Aguarde e tente novamente em instantes.";
-    }
-
-    if (normalizedCode === "invalid_credentials" || normalizedMessage.includes("invalid login credentials")) {
-      return "Email ou senha invalidos.";
-    }
-
-    if (normalizedCode === "email_not_confirmed" || normalizedMessage.includes("email not confirmed")) {
-      return "Confirme seu email antes de entrar.";
-    }
-
-    if (normalizedStatus === 400 || normalizedStatus === 422) {
-      return "Nao foi possivel entrar. Verifique email e senha.";
-    }
-
-    if (normalizedStatus === 403) {
-      return "Login por email/senha nao esta habilitado.";
-    }
-
-    if (normalizedStatus >= 500) {
-      return "Falha temporaria. Tente novamente.";
-    }
-
-    return "Falha de autenticacao. Tente novamente.";
-  }
-
-  async function runSignIn() {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     const normalizedEmail = email.trim();
-    const normalizedPassword = password;
+    const normalizedPassword = password.trim();
+    const normalizedConfirmPassword = confirmPassword.trim();
 
     if (!normalizedEmail) {
       pushToast({
@@ -150,6 +129,22 @@ export function LoginForm() {
       return;
     }
 
+    if (normalizedPassword.length < 6) {
+      pushToast({
+        kind: "error",
+        message: "A senha deve ter no minimo 6 caracteres.",
+      });
+      return;
+    }
+
+    if (normalizedPassword !== normalizedConfirmPassword) {
+      pushToast({
+        kind: "error",
+        message: "As senhas nao conferem.",
+      });
+      return;
+    }
+
     if (cooldownUntilMs && Date.now() < cooldownUntilMs) {
       const remainingSeconds = Math.max(1, Math.ceil((cooldownUntilMs - Date.now()) / 1000));
       pushToast({
@@ -159,20 +154,30 @@ export function LoginForm() {
       return;
     }
 
-    if (isSubmitting || authInFlightRef.current) {
+    if (isSubmitting || submitInFlightRef.current) {
       return;
     }
 
-    authInFlightRef.current = true;
+    submitInFlightRef.current = true;
     setIsSubmitting(true);
 
     try {
       const supabase = createSupabaseBrowserClient();
-      const response = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signUp({
         email: normalizedEmail,
         password: normalizedPassword,
       });
-      const { error } = response;
+
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[auth-register]", {
+          status: Number(error?.status ?? 0) || undefined,
+          code: (error as AuthErrorLike | null)?.code ?? undefined,
+          msg: error?.message ?? undefined,
+          hasUser: Boolean(data?.user),
+          hasSession: Boolean(data?.session),
+          identitiesCount: data?.user?.identities?.length ?? null,
+        });
+      }
 
       if (error) {
         const safeError = {
@@ -181,40 +186,37 @@ export function LoginForm() {
           message: error.message ?? undefined,
         };
 
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[auth-login]", {
-            status: safeError.status,
-            code: safeError.code,
-            msg: safeError.message,
-          });
-        }
-
         if (isRateLimitError(safeError)) {
           activateRateLimitCooldown(getCooldownSecondsFromError(safeError));
         }
 
         pushToast({
           kind: "error",
-          message: mapAuthError(safeError),
+          message: mapSignUpError(safeError),
         });
+        return;
+      }
+
+      if (data.session) {
+        pushToast({
+          kind: "success",
+          message: "Conta criada com sucesso.",
+        });
+        router.replace("/dashboard");
+        router.refresh();
         return;
       }
 
       pushToast({
         kind: "success",
-        message: "Login realizado com sucesso.",
+        message: "Cadastro enviado. Confirme o email para ativar sua conta antes de entrar.",
       });
-      router.replace("/dashboard");
+      router.replace("/login");
       router.refresh();
     } finally {
-      authInFlightRef.current = false;
+      submitInFlightRef.current = false;
       setIsSubmitting(false);
     }
-  }
-
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    await runSignIn();
   }
 
   return (
@@ -223,17 +225,15 @@ export function LoginForm() {
       onSubmit={onSubmit}
       style={{ margin: "0 auto", maxWidth: "420px", padding: "1.5rem" }}
     >
-      <h1 className="heading">Entrar no MarketNow</h1>
-      <p className="text-muted">
-        Entre com seu email e senha para acessar suas listas.
-      </p>
+      <h1 className="heading">Criar conta</h1>
+      <p className="text-muted">Cadastre seu email e senha para usar o MarketNow.</p>
 
       <div className="stack-xs">
-        <label className="label" htmlFor="email">
+        <label className="label" htmlFor="register-email">
           Email
         </label>
         <input
-          id="email"
+          id="register-email"
           className="input"
           type="email"
           value={email}
@@ -245,16 +245,32 @@ export function LoginForm() {
       </div>
 
       <div className="stack-xs">
-        <label className="label" htmlFor="password">
+        <label className="label" htmlFor="register-password">
           Senha
         </label>
         <input
-          id="password"
+          id="register-password"
           className="input"
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          placeholder="Sua senha"
+          placeholder="Minimo de 6 caracteres"
+          disabled={isSubmitting}
+          required
+        />
+      </div>
+
+      <div className="stack-xs">
+        <label className="label" htmlFor="register-confirm-password">
+          Confirmar senha
+        </label>
+        <input
+          id="register-confirm-password"
+          className="input"
+          type="password"
+          value={confirmPassword}
+          onChange={(event) => setConfirmPassword(event.target.value)}
+          placeholder="Confirme sua senha"
           disabled={isSubmitting}
           required
         />
@@ -262,22 +278,16 @@ export function LoginForm() {
 
       <div className="row-actions" style={{ gap: "0.75rem" }}>
         <Button disabled={isSubmitting} type="submit">
-          {isSubmitting ? "Entrando..." : "Entrar"}
+          {isSubmitting ? "Criando..." : "Criar conta"}
         </Button>
         <Button
           disabled={isSubmitting}
-          onClick={() => router.push("/register")}
+          onClick={() => router.push("/login")}
           type="button"
           variant="dark"
         >
-          Criar conta
+          Ja tenho conta
         </Button>
-      </div>
-
-      <div>
-        <Link className="text-muted text-small" href="/reset-password">
-          Esqueci minha senha
-        </Link>
       </div>
     </form>
   );

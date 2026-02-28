@@ -181,14 +181,6 @@ export function LoginForm() {
           message: error.message ?? undefined,
         };
 
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[auth-login]", {
-            status: safeError.status,
-            code: safeError.code,
-            msg: safeError.message,
-          });
-        }
-
         if (isRateLimitError(safeError)) {
           activateRateLimitCooldown(getCooldownSecondsFromError(safeError));
         }

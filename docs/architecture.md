@@ -1,55 +1,50 @@
-# Architecture - MarketNow
+# Arquitetura - MarketNow
 
-## Objetivo
+## Visao geral
 
-Definir arquitetura do MVP com foco em:
-- autenticacao por email/senha + reset
-- isolamento de dados por usuario
-- precificacao user-first com fallback seed regional
+O MarketNow usa arquitetura de frontend serverless:
+- Frontend em Next.js (App Router)
+- Backend as a Service com Supabase (Auth + Postgres)
+- Deploy continuo na Vercel
 
-## Camadas
+Nao existe backend customizado separado neste projeto. O frontend conversa direto com o Supabase usando cliente browser/server e regras de RLS.
 
-### UI (Next.js App Router)
-- Login (`/login`)
-- Dashboard de listas (`/dashboard`)
-- Detalhe da lista (`/lists/:id`)
-- Estados de sugestao de preco, compra concluida e fallback
+## Blocos principais
 
-### Services
+### Frontend (Next.js)
 
-#### `location-service`
-- Resolve contexto regional (`uf`, `macroRegion`) para fallback da seed.
-- Nao define preco principal; apenas contexto de fallback.
+- Rotas publicas: login, cadastro e reset de senha
+- Rotas autenticadas: dashboard e listas
+- Componentizacao em `src/components` e organizacao de rotas em `src/app`
 
-#### `pricing-service`
-- Implementa prioridade oficial de sugestao:
-1. ultimo preco do usuario
-2. media historica do usuario
-3. seed regional/nacional
-- Calcula total estimado da lista.
-- Nao compartilha historico entre usuarios.
+### Backend as a Service (Supabase)
 
-### Data Access (Supabase)
-- `supabaseBrowserClient`: auth client-side e chamadas permitidas por RLS.
-- `supabaseServerClient`: leitura/escrita server-side com sessao do usuario.
+- Auth por email/senha
+- Banco Postgres com tabelas de dominio da aplicacao
+- RLS para garantir isolamento de dados entre usuarios
 
-### Banco (dominio de preco)
-- Historico do usuario: `user_product_prices` (fonte principal).
-- Registro de compra da lista: `shopping_list_items.paid_price`.
-- Seed fallback: `regional_prices`.
+### Autenticacao
 
-## Fluxo principal de preco
+- Sessao gerenciada pelo Supabase Auth
+- Middlewares/guards de rota para areas autenticadas
+- Fluxos suportados: cadastro, login e redefinicao de senha
 
-1. Usuario monta lista.
-2. Sistema calcula sugestao de cada item (prioridade user-first).
-3. Sistema exibe total estimado da lista.
-4. Usuario marca item como comprado e informa preco pago.
-5. Opcional: usuario decide salvar como referencia futura.
-6. Se salvar, grava em `user_product_prices`.
+### Deploy (Vercel)
 
-## Responsabilidades e limites
+- Build e hosting do frontend Next.js
+- Variaveis de ambiente configuradas no projeto Vercel
+- Publicacao da branch `main` como ambiente de producao
 
-- UI nao calcula preco final por conta propria; usa `pricing-service`.
-- Seed regional nao substitui historico do usuario.
-- Nenhum preco pessoal vira media global no MVP.
-- Sem integracoes externas de preco.
+## Fluxo de requisicoes
+
+1. Usuario acessa a aplicacao pela Vercel.
+2. Frontend renderiza pagina e valida estado de autenticacao.
+3. Acoes de usuario disparam chamadas para Supabase (Auth e Database).
+4. Supabase aplica RLS e retorna apenas dados permitidos para o usuario autenticado.
+5. Frontend atualiza estado/tela com base na resposta.
+
+## Limites de responsabilidade
+
+- Regras de acesso a dados ficam no Supabase (RLS), nao no cliente.
+- Frontend usa apenas credenciais publicas (`ANON KEY`).
+- Sem API proprietaria adicional para este escopo de portfolio.

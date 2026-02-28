@@ -153,34 +153,8 @@ export function ResetPasswordRequestForm() {
 
     try {
       const redirectTo = `${resolveAppUrl()}/reset-password/confirm`;
-      if (process.env.NODE_ENV !== "production") {
-        let resolvedPathname = "";
-        let hasAppUrlEnv = false;
-        try {
-          hasAppUrlEnv = Boolean(process.env.NEXT_PUBLIC_APP_URL);
-          resolvedPathname = new URL(redirectTo).pathname;
-        } catch {
-          resolvedPathname = "";
-        }
-
-        console.info("[auth-reset-request]", {
-          pathname: typeof window !== "undefined" ? window.location.pathname : "",
-          hasAppUrlEnv,
-          redirectOrigin: redirectTo.replace(/\/reset-password\/confirm$/, ""),
-          redirectPathname: resolvedPathname,
-        });
-      }
-
       const supabase = createResetPasswordRequestClient();
       const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
-
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[auth-reset-request]", {
-          status: Number(error?.status ?? 0) || undefined,
-          code: (error as AuthErrorLike | null)?.code ?? undefined,
-          msg: error?.message ?? undefined,
-        });
-      }
 
       if (error) {
         const safeError = {

@@ -1,46 +1,53 @@
 # MarketNow
 
-MarketNow e uma aplicacao web de lista de compras inteligente com autenticacao por email/senha (Supabase), CRUD de listas/itens e estimativa de total por item.
+Aplicacao web para gerenciamento de listas de compras com autenticacao por email/senha e acompanhamento de produtos por usuario.
+O foco do projeto e oferecer um fluxo simples de cadastro, login, recuperacao de senha e operacao segura de dados com Supabase.
+Este repositorio representa a versao final preparada para portfolio.
 
-## Regra de Preco (fonte de verdade)
+## Aplicacao em producao
 
-- Fonte principal: historico do proprio usuario (`user_product_prices`).
-- Seed regional/nacional (`regional_prices`) e apenas fallback.
-- Prioridade da sugestao:
-1. Ultimo preco pago pelo usuario.
-2. Media historica do usuario para o produto.
-3. Seed por UF -> macro-regiao -> nacional.
+- Vercel: [https://marketnow.vercel.app](https://marketnow.vercel.app)
 
 ## Stack
 
 - Next.js
-- TypeScript
-- Supabase (Auth + Database)
-- Vercel (free plan)
+- React
+- Supabase
+- Vercel
 
-## Rodar localmente
+## Funcionalidades implementadas
+
+- Cadastro com email e senha
+- Login
+- Redefinicao de senha
+- Protecao de rotas autenticadas
+- Integracao com banco via Supabase
+
+## Estrutura do projeto
+
+- `src/app`: rotas e paginas (App Router)
+- `src/components`: componentes reutilizaveis de UI
+- `src/lib`: clientes/config de Supabase, validacoes e utilitarios
+- `src/services`: regras de servico (ex.: precificacao e formatacao)
+- `supabase`: schema, seed e migrations SQL
+- `docs`: documentacao tecnica e operacional
+
+## Como rodar localmente
+
+1. Clonar o repositorio:
+
+```bash
+git clone https://github.com/the-dv/marketnow.git
+cd marketnow
+```
+
+2. Instalar dependencias:
 
 ```bash
 npm install
-npm run dev
 ```
 
-Build:
-
-```bash
-npm run build
-npm run start
-```
-
-Testes unitarios:
-
-```bash
-npm run test
-```
-
-## Variaveis de ambiente
-
-Crie `.env.local`:
+3. Criar o arquivo `.env.local` na raiz:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
@@ -48,31 +55,30 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-## Setup do banco (Supabase)
+4. Executar em desenvolvimento:
 
-1. Execute `supabase/schema.sql`.
-2. Se seu projeto ja tinha o schema antigo, execute tambem `supabase/migrations/20260226_user_pricing_model.sql`.
-3. Execute `supabase/seed.sql` para popular `categories`, `products` e `regional_prices` (fallback).
+```bash
+npm run dev
+```
 
-Para passos externos detalhados (Supabase Auth, SQL e Vercel), consulte:
-- `docs/manual-steps.md`
+## Decisoes tecnicas
 
-## Fluxo de compra implementado
+- Next.js App Router para separar claramente rotas publicas e autenticadas.
+- Supabase como BaaS para acelerar autenticacao e persistencia com RLS.
+- Frontend consumindo apenas chaves publicas e sessao do usuario autenticado.
 
-- O item mostra sugestao de preco e origem.
-- Ao marcar como comprado, o usuario informa quanto pagou.
-- Opcional: salvar esse valor como referencia futura.
-- Se salvar, grava em `user_product_prices` (escopo exclusivo do usuario).
-- O valor pago do item fica em `shopping_list_items.paid_price` para registrar a compra daquela lista.
+## Consideracoes de seguranca
 
-## Deploy na Vercel (free)
+- RLS habilitado no Supabase para isolamento de dados por usuario.
+- Uso somente de `NEXT_PUBLIC_SUPABASE_ANON_KEY` no frontend.
+- Segredos e variaveis de ambiente protegidos no painel da Vercel.
 
-1. Conectar o repositorio na Vercel.
-2. Configurar variaveis:
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-3. Deploy padrao de Next.js.
+## Checklist de producao
 
-## Nota importante
+- Fluxos principais validados em producao (login, cadastro, reset).
+- Build e lint executados antes de publicar.
+- Variaveis de ambiente revisadas no projeto Vercel.
 
-Nao usamos Google Shopping nem APIs pagas de preco. A seed interna e apenas sugestao inicial/fallback e nunca substitui o historico do proprio usuario como fonte principal.
+## Licenca
+
+MIT

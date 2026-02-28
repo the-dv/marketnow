@@ -168,17 +168,6 @@ export function RegisterForm() {
         password: normalizedPassword,
       });
 
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[auth-register]", {
-          status: Number(error?.status ?? 0) || undefined,
-          code: (error as AuthErrorLike | null)?.code ?? undefined,
-          msg: error?.message ?? undefined,
-          hasUser: Boolean(data?.user),
-          hasSession: Boolean(data?.session),
-          identitiesCount: data?.user?.identities?.length ?? null,
-        });
-      }
-
       if (error) {
         const safeError = {
           status: Number(error.status ?? 0) || undefined,

@@ -15,15 +15,11 @@ type AuthErrorLike = {
 
 type EmailOtpType = "signup" | "invite" | "magiclink" | "recovery" | "email_change" | "email";
 
-const isDev = process.env.NODE_ENV !== "production";
 const supportedOtpTypes = ["signup", "invite", "magiclink", "recovery", "email_change", "email"] as const;
 
-function devLog(event: string, payload?: unknown) {
-  if (!isDev) {
-    return;
-  }
-
-  console.info("[reset-password-confirm]", event, payload ?? "");
+function devLog(_event: string, _payload?: unknown) {
+  void _event;
+  void _payload;
 }
 
 function mapRecoverySessionError(error: AuthErrorLike) {
@@ -100,14 +96,6 @@ export function ResetPasswordConfirmForm() {
   const saveInFlightRef = useRef(false);
   const { pushToast } = useToast();
   const router = useRouter();
-
-  useEffect(() => {
-    devLog("state-change", {
-      isPreparing,
-      isSaving,
-      isRecoveryReady,
-    });
-  }, [isPreparing, isSaving, isRecoveryReady]);
 
   useEffect(() => {
     if (prepareOnceRef.current) {

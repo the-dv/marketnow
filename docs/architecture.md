@@ -3,7 +3,7 @@
 ## Objetivo
 
 Definir arquitetura do MVP com foco em:
-- autenticacao por Magic Link
+- autenticacao por email/senha + reset
 - isolamento de dados por usuario
 - precificacao user-first com fallback seed regional
 
@@ -53,4 +53,3 @@ Definir arquitetura do MVP com foco em:
 - Seed regional nao substitui historico do usuario.
 - Nenhum preco pessoal vira media global no MVP.
 - Sem integracoes externas de preco.
-

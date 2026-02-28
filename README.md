@@ -1,6 +1,6 @@
 # MarketNow
 
-MarketNow e uma aplicacao web de lista de compras inteligente com autenticacao via Magic Link (Supabase), CRUD de listas/itens e estimativa de total por item.
+MarketNow e uma aplicacao web de lista de compras inteligente com autenticacao por email/senha (Supabase), CRUD de listas/itens e estimativa de total por item.
 
 ## Regra de Preco (fonte de verdade)
 
@@ -45,6 +45,7 @@ Crie `.env.local`:
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 ## Setup do banco (Supabase)

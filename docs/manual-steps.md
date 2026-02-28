@@ -63,21 +63,27 @@ where slug = 'outros';
 
 Se nao retornar linha, rode tambem `supabase/seed.sql` e repita a validacao.
 
-## Supabase - Configuracao Auth Magic Link
+## Supabase - Configuracao Auth (Email + Senha + Reset)
 
 1. Dashboard -> Authentication -> URL Configuration.
 2. Definir **Site URL**:
    - local: `http://localhost:3000`
    - producao: `https://<seu-projeto>.vercel.app`
 3. Definir **Redirect URLs** (lista permitida):
-   - `http://localhost:3000/auth/callback`
-   - `https://<seu-projeto>.vercel.app/auth/callback`
-   - opcional (preview): `https://*-<seu-time>.vercel.app/auth/callback`
+   - `http://localhost:3000/reset-password/confirm`
+   - `http://localhost:3000/auth/callback` (manter para fluxos legados)
+   - `https://<seu-projeto>.vercel.app/reset-password/confirm`
+   - `https://<seu-projeto>.vercel.app/auth/callback` (se aplicavel)
+   - opcional (preview): `https://*-<seu-time>.vercel.app/reset-password/confirm`
 4. Em Authentication -> Providers -> Email:
-   - Magic Link habilitado.
-5. Validar no app:
-   - `signInWithOtp` deve usar `emailRedirectTo = <origem-atual>/auth/callback`
-   - se `redirectTo` nao estiver na lista permitida, o Supabase retorna erro 400/422
+   - Email/Password habilitado.
+5. Garantir variavel de ambiente local:
+   - `NEXT_PUBLIC_APP_URL=http://localhost:3000`
+6. Teste ponta a ponta de reset:
+   - em `/reset-password`, enviar link para um email valido
+   - abrir link recebido, cair em `/reset-password/confirm`
+   - definir nova senha e voltar ao `/login`
+   - autenticar com a nova senha
 
 ## Vercel - Variaveis de ambiente
 

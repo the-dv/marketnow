@@ -10,7 +10,7 @@ Organizar a entrega do MarketNow em fases, com foco no MVP e evolucoes pos-MVP b
 - Inicializar projeto Next.js + TypeScript.
 - Configurar Supabase (Auth + Database).
 - Definir variaveis de ambiente.
-- Validar login baseline com Magic Link.
+- Validar baseline de autenticacao por email/senha.
 
 Marco tecnico:
 - Estrutura base da aplicacao e autenticacao funcional em ambiente de desenvolvimento.
@@ -85,7 +85,7 @@ Marco tecnico:
 
 ## Criterios de Aceite do MVP
 
-- Usuario autentica por Magic Link e acessa rotas privadas.
+- Usuario autentica por email/senha e acessa rotas privadas.
 - Usuario gerencia listas e itens proprios.
 - Total estimado respeita prioridade user-first e fallback seed.
 - Preco salvo de um usuario nao e compartilhado com outro.

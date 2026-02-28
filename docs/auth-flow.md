@@ -1,72 +1,78 @@
-﻿# Auth Flow - Supabase Magic Link
+# Auth Flow - Supabase Email/Senha + Reset
 
 ## Objetivo
 
-Documentar o fluxo de autenticacao via Magic Link (email), controle de sessao e protecao de rotas privadas no MarketNow.
+Documentar o fluxo de autenticacao por email/senha, reset de senha, controle de sessao e protecao de rotas privadas no MarketNow.
 
-## Fluxo de Login (Magic Link)
+## Fluxo de Login (Email/Senha)
 
 1. Solicitacao
-- Usuario informa email na tela de login.
-- App chama Supabase Auth para envio de Magic Link.
+- Usuario informa email e senha na tela de login (`/login`).
+- App chama `supabase.auth.signInWithPassword`.
 
-2. Confirmacao
-- Usuario abre o link recebido por email.
-- Supabase valida token e cria sessao autenticada.
+2. Sessao
+- Em sucesso, Supabase retorna sessao autenticada.
+- Usuario e redirecionado para `/dashboard`.
 
-3. Callback e Redirecionamento
-- Aplicacao processa callback de auth.
-- Usuario e redirecionado para o dashboard.
+## Fluxo de Cadastro
 
-4. Sessao Ativa
-- Rotas privadas passam a ser acessiveis enquanto a sessao for valida.
+1. Usuario cria conta em `/register` com email/senha (`signUp`).
+2. Se confirmacao de email estiver ativa no projeto Supabase, usuario precisa confirmar antes do primeiro login.
+3. Se confirmacao estiver desativada, sessao pode ser criada imediatamente.
+
+## Fluxo de Reset de senha
+
+1. Usuario solicita reset em `/reset-password` (`resetPasswordForEmail`).
+2. Link redireciona para `/reset-password/confirm`.
+3. App troca `code` por sessao de recovery (quando presente) e chama `updateUser({ password })`.
+
+## Callback de auth
+
+- Rota: `/auth/callback`.
+- Funcao: processar `code` (`exchangeCodeForSession`) e redirecionar de forma segura.
+- Observacao: mantida por compatibilidade de fluxo auth do Supabase e links legados.
 
 ## Protecao de Rotas Privadas
 
 ### Server-side
-- Validar sessao em rotas protegidas (layout/page server quando aplicavel).
+- Validar sessao em rotas protegidas (page server).
 - Redirecionar para login se sessao ausente.
 
 ### Client-side
-- Validar estado de autenticacao ao montar paginas privadas.
-- Exibir estado de carregamento ate resolver sessao.
+- Formularios de auth fazem validacao basica e exibem feedback via toast.
+- Nao persistir erro fixo na tela.
 
 ## Logout
 
-- Encerrar sessao via Supabase Auth.
-- Limpar estado local derivado da sessao.
+- Encerrar sessao via `supabase.auth.signOut`.
 - Redirecionar para login.
 
-## Boas Praticas de Seguranca
+## Boas praticas de seguranca
 
 - Usar `NEXT_PUBLIC_SUPABASE_ANON_KEY` apenas no client.
-- Usar `SUPABASE_SERVICE_ROLE_KEY` somente no servidor e apenas quando necessario.
-- Nunca expor `service_role` em codigo client, bundle publico ou variavel `NEXT_PUBLIC_*`.
-- Aplicar RLS em todas as tabelas de dados de usuario.
+- Aplicar RLS nas tabelas de dados de usuario.
 - Tratar `auth.uid()` como fonte de verdade para ownership.
 
-## Variaveis de Ambiente
+## Variaveis de ambiente
 
-Obrigatorias para MVP:
+Obrigatorias:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_APP_URL`
 
-Somente server-side (uso restrito):
-- `SUPABASE_SERVICE_ROLE_KEY`
-
-## Tratamento de Erros
+## Tratamento de erros
 
 Cenarios previstos:
-- Link expirado ou invalido.
-- Email nao entregue.
+- Credenciais invalidas.
+- Conta sem confirmacao de email (quando exigido no Supabase).
+- Rate limit de auth.
 - Sessao ausente em rota privada.
 
 Comportamento recomendado:
-- Exibir mensagem objetiva ao usuario.
-- Permitir reenviar Magic Link.
+- Exibir mensagem objetiva via toast.
 - Evitar detalhar erro interno sensivel.
 
-## Convencao de Erros de Dominio
+## Convencao de erros de dominio
 
 - `AUTH_REQUIRED`: usuario nao autenticado para acao privada.
 - `SESSION_INVALID`: sessao expirada/invalida.

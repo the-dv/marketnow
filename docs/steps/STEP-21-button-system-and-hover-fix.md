@@ -15,7 +15,7 @@ Padronizar os botoes do app em um sistema unico (`Button` e `IconButton`) com es
 - [x] Focus ring visivel e consistente em botoes e icon buttons.
 - [x] Dashboard migrado: `Sair`, `Criar lista`, `Arquivar/Reativar`, `Excluir (icone)`.
 - [x] Lista migrada: `Voltar`, `Salvar produto`, botoes dos modais e lixeira de produto.
-- [x] Login migrado para `Button` no envio de Magic Link.
+- [x] Login/cadastro/reset migrados para `Button` nos principais submits.
 - [x] Removido risco de sublinhado indevido em elementos com estilo de botao.
 - [x] `npm run lint` executado com sucesso.
 - [x] `npm run build` executado com sucesso.
@@ -33,5 +33,5 @@ Padronizar os botoes do app em um sistema unico (`Button` e `IconButton`) com es
 
 1. Dashboard: validar hover/focus/active em `Sair`, `Criar lista`, `Arquivar/Reativar` e `Excluir`.
 2. Lista: validar hover/focus/active em `Voltar`, `Salvar produto`, botoes dos modais e lixeira.
-3. Login: validar hover/focus/active no botao `Enviar Magic Link`.
+3. Login/Register/Reset: validar hover/focus/active nos botoes de submit.
 4. Confirmar tooltip dos icon buttons de exclusao.

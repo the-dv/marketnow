@@ -1,5 +1,13 @@
 # Vercel Deploy Log
 
+## 2026-02-28 15:25:48 -03:00
+- Branch publicada: `test-branch`
+- SHA: `d1fcaf3e0fe3c4e1f367d18fe3ce3272ed7e3cf9`
+- Resumo curto das alteracoes:
+  - Ajuste minimo no fluxo de reset (request + confirm) para estabilizar sessao de recovery em producao.
+  - Logs somente em DEV no fluxo de reset (sem expor tokens).
+- Data/hora: `2026-02-28 15:25:48 -03:00`
+
 ## 2026-02-28 15:16:46 -03:00
 - SHA: `pendente de push (commit local: fix: password reset confirm session in production)`
 - Arquivos alterados:

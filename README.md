@@ -1,10 +1,8 @@
 # MarketNow
 
-Aplicacao web para gerenciamento de listas de compras com autenticacao por email/senha e acompanhamento de produtos por usuario.
-O foco do projeto e oferecer um fluxo simples de cadastro, login, recuperacao de senha e operacao segura de dados com Supabase.
-Este repositorio representa a versao final preparada para portfolio.
+Aplicação web para gerenciamento de listas de compras com autenticação por e-mail e senha, permitindo acompanhamento individual de produtos por usuário. O objetivo é oferecer um fluxo simples e seguro de cadastro, login e recuperação de senha, com persistência via Supabase.
 
-## Aplicacao em producao
+## Aplicação em produção
 
 - Vercel: [https://marketnow.vercel.app](https://marketnow.vercel.app)
 
@@ -17,31 +15,31 @@ Este repositorio representa a versao final preparada para portfolio.
 
 ## Funcionalidades implementadas
 
-- Cadastro com email e senha
+- Cadastro com e-mail e senha
 - Login
-- Redefinicao de senha
-- Protecao de rotas autenticadas
-- Integracao com banco via Supabase
+- Redefinição de senha
+- Proteção de rotas autenticadas
+- Integração com banco via Supabase
 
 ## Estrutura do projeto
 
-- `src/app`: rotas e paginas (App Router)
-- `src/components`: componentes reutilizaveis de UI
-- `src/lib`: clientes/config de Supabase, validacoes e utilitarios
-- `src/services`: regras de servico (ex.: precificacao e formatacao)
+- `src/app`: rotas e páginas (App Router)
+- `src/components`: componentes reutilizáveis de UI
+- `src/lib`: clientes/configuração de Supabase, validações e utilitários
+- `src/services`: regras de serviço (ex.: precificação e formatação)
 - `supabase`: schema, seed e migrations SQL
-- `docs`: documentacao tecnica e operacional
+- `docs`: documentação técnica e operacional
 
 ## Como rodar localmente
 
-1. Clonar o repositorio:
+1. Clonar o repositório:
 
 ```bash
 git clone https://github.com/the-dv/marketnow.git
 cd marketnow
 ```
 
-2. Instalar dependencias:
+2. Instalar dependências:
 
 ```bash
 npm install
@@ -61,24 +59,24 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 npm run dev
 ```
 
-## Decisoes tecnicas
+## Decisões técnicas
 
-- Next.js App Router para separar claramente rotas publicas e autenticadas.
-- Supabase como BaaS para acelerar autenticacao e persistencia com RLS.
-- Frontend consumindo apenas chaves publicas e sessao do usuario autenticado.
+- Next.js App Router para separar claramente rotas públicas e autenticadas.
+- Supabase como BaaS para autenticação e persistência com RLS.
+- Frontend consumindo apenas chaves públicas e sessão do usuário autenticado.
 
-## Consideracoes de seguranca
+## Considerações de segurança
 
-- RLS habilitado no Supabase para isolamento de dados por usuario.
+- RLS habilitado no Supabase para isolamento de dados por usuário.
 - Uso somente de `NEXT_PUBLIC_SUPABASE_ANON_KEY` no frontend.
-- Segredos e variaveis de ambiente protegidos no painel da Vercel.
+- Segredos e variáveis de ambiente protegidos no painel da Vercel.
 
-## Checklist de producao
+## Checklist de produção
 
-- Fluxos principais validados em producao (login, cadastro, reset).
+- Fluxos principais validados em produção (login, cadastro e reset).
 - Build e lint executados antes de publicar.
-- Variaveis de ambiente revisadas no projeto Vercel.
+- Variáveis de ambiente revisadas no projeto Vercel.
 
-## Licenca
+## Licença
 
 MIT

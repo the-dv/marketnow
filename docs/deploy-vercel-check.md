@@ -8,13 +8,13 @@ Repositorio: `https://github.com/the-dv/marketnow.git`
 - Branch local ativa no inicio: `test-branch`
 - No diagnostico inicial, `main` local e `test-branch` local estavam no mesmo commit de app:
   - `7126da263502f6d03824673f62883df8204e0683`
-- Estado final apos gerar este relatorio:
-  - `main`: `e074a804a33ec645ceb657a16bd1d64df4a5e0aa`
-  - `test-branch`: `7126da263502f6d03824673f62883df8204e0683`
-  - Diferenca entre `main` e `test-branch`: apenas `docs/deploy-vercel-check.md`
+- Commits locais de documentacao gerados nesta verificacao:
+  - `e074a80` - `docs: add deploy and vercel verification report`
+  - `c745813` - `docs: update deploy report with final hashes`
+- Diferenca entre `main` e `test-branch` apos esses commits: apenas documentacao em `docs/deploy-vercel-check.md` (sem mudanca de codigo de auth/app).
 - Branch remota `origin/main` esta atrasada:
   - `origin/main`: `55439970af18ab8a322f0f62a796628686bec6a8`
-  - Diferenca: `main` local esta 34 commits a frente de `origin/main`
+  - Diferenca: `main` local esta a frente e ainda nao foi publicada por bloqueio de permissao no push.
 
 ## Branch correta e evidencias (login com senha)
 
@@ -114,7 +114,7 @@ Status do push:
 1. Abrir `https://github.com/the-dv/marketnow`.
 2. Entrar na branch `main`.
 3. Confirmar o SHA mais recente da `main`:
-   - Esperado apos push correto: `e074a804a33ec645ceb657a16bd1d64df4a5e0aa` (ou commit mais novo contendo esse historico).
+   - Esperado apos push correto: o mesmo SHA exibido no seu `git rev-parse main` local no momento do push.
 4. Se a `main` ainda estiver em `55439970af18ab8a322f0f62a796628686bec6a8`, executar localmente com credencial correta:
    - `git push origin main`
 5. Confirmar no historico da `main` que o commit `e26041d1f017807c7b82b138f1e5c44d0019f608` existe.
@@ -133,7 +133,7 @@ Status do push:
 3. Ir em **Deployments**.
 4. Abrir o deployment mais recente de producao.
 5. Conferir o **Commit SHA** usado nesse deploy.
-6. O SHA deve ser o ultimo da `main` no GitHub (esperado: `e074a804a33ec645ceb657a16bd1d64df4a5e0aa` ou mais novo da `main`).
+6. O SHA deve ser o ultimo da `main` no GitHub (nao usar SHA antigo de outro branch/deploy).
 7. Se SHA divergir:
    - Ajustar **Production Branch** para `main` em Settings -> Git.
    - Acionar **Redeploy** do commit correto da `main`.
